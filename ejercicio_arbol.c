@@ -18,6 +18,10 @@ int main(int argc, char** argv) {
         if (f > 0) {
             break;
         }
+        
+        #ifdef SLOW
+        sleep(1);
+        #endif
     }
 
     wait(NULL);
