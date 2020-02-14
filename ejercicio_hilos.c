@@ -12,26 +12,12 @@ typedef struct {
     int x;
 } thread_info;
 
-void clean_up(thread_info *ti, pthread_t *h, int dim) {
-    int i = 0;
-
-    if (ti != NULL) {
-        free(ti);
-    }
-
-    if (h != NULL) {
-        for (i = 0; i < dim; pthread_cancel(h[i]), i++);
-        for (i = 0; i < dim; pthread_join(h[i], NULL), i++);
-        free(h);
-    }
-}
-
 void* funcion(void* ti) {
     int *ret_val = NULL;
     thread_info *cast = (thread_info*)ti;
 
     sleep(cast->sleep_time);
-    
+
     if ((ret_val = (int*)malloc(sizeof(int))) == NULL) {
         perror("malloc");
         return NULL;
@@ -56,13 +42,13 @@ int main(int argc, char *argv[]) {
     /*Reserva de memoria*/
     if ((info = (thread_info*)malloc(n_hilos*sizeof(thread_info))) == NULL) {
         perror("ERROR: malloc");
-        clean_up(info, NULL, 0);
+        free(info);
         exit(EXIT_FAILURE);
     }
 
     if ((hilos = (pthread_t*)malloc(n_hilos*sizeof(pthread_t))) == NULL) {
         perror("ERROR: malloc");
-        clean_up(info, hilos, 0);
+        free(info);
         exit(EXIT_FAILURE);
     }
 
@@ -74,7 +60,7 @@ int main(int argc, char *argv[]) {
         error = pthread_create(&hilos[i], NULL, funcion, (void *)&info[i]);
         if (error != 0) {
             fprintf(stderr, "pthread_create: %s\n", strerror(error));
-            clean_up(info, hilos, i);
+            free(info);
             exit(EXIT_FAILURE);
         }
     }
@@ -84,7 +70,7 @@ int main(int argc, char *argv[]) {
         error = pthread_join(hilos[i], (void *)&ret_val);
         if (error != 0) {
             fprintf(stderr, "pthread_join: %s\n", strerror(error));
-            clean_up(info, hilos, n_hilos);
+            free(info);
             exit(EXIT_FAILURE);
         }
 
@@ -92,7 +78,7 @@ int main(int argc, char *argv[]) {
         free(ret_val);
     }
 
-    clean_up(info, hilos, 0);
+    free(info);
     printf("El programa %s termino correctamente \n", argv[0]);
     exit(EXIT_SUCCESS);
 }

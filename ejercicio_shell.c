@@ -11,20 +11,22 @@
 int main(int argc, char *argv[]) {
 	int error = 0;
 	wordexp_t exp;
-	char s[BUF] = "";
+	char s[BUF];
 
 	while(1) {
-		if (fprintf(stdout, ">> ") < 0) {
+		if (fprintf(stdout, ">> ") < 0) {}
 			perror("Error printing");
 			exit(EXIT_FAILURE);
 		}
 
-		if (fgets(s, BUF, stdin) == NULL) {	/*stdin: EOF*/
+		if (fgets(s, BUF, stdin) == NULL) {	//stdin: EOF
 			break;
 		}
 
+		s[strcspn(s, "\n")] = '\0'; //removing newline
+
 		if ( (error = wordexp(s, &exp, 0)) ) {
-			fprintf(stderr, "wordexp: %s\n", strerror(error));
+			fprintf(stderr, "wordexp: %s, %d\n", strerror(error), error);
 			exit(EXIT_FAILURE);
 		}
 
