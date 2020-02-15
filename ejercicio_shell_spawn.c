@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <wordexp.h>
+#include <spawn.h>
 
 #define BUF 64
 
@@ -26,18 +27,16 @@ int main(int argc, char *argv[]) {
 		s[strcspn(s, "\n")] = '\0'; //removing newline
 
 		if ( (error = wordexp(s, &exp, 0)) ) {
-			fprintf(stderr, "wordexp: %s\n", strerror(error));
+			fprintf(stderr, "wordexp: %s, %d\n", strerror(error), error);
 			exit(EXIT_FAILURE);
 		}
 
-		if ((error = fork()) < 0) {
-			fprintf(stderr, "fork: %s\n", strerror(error));
+		error = posix_spawnp(NULL, exp.we_wordv[0], NULL, NULL, exp.we_wordv, NULL);
+
+		if (error < 0) {
+			fprintf(stderr, "posix_spawnp: %s\n", strerror(error));
 			wordfree(&exp);
 			exit(EXIT_FAILURE);
-		}
-
-		if (!error) {
-			execvp(exp.we_wordv[0], exp.we_wordv);
 		}
 
 		wait(&wstatus);
