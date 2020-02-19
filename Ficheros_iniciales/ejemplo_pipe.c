@@ -29,6 +29,7 @@ int main(void) {
 
 		/* Cierre del descriptor de entrada en el hijo */
 		close(fd[0]);
+		sleep(1);
 
 		/* Enviar el saludo vía descriptor de salida */
 		/* strlen(string) + 1 < PIPE_BUF así que no hay escrituras cortas */
@@ -44,10 +45,10 @@ int main(void) {
 		exit(EXIT_SUCCESS);
 	} else {
 		/* Cierre del descriptor de salida en el padre */
-		close(fd[1]);
+		//close(fd[1]);
 		/* Leer algo de la tubería... el saludo! */
 		ssize_t nbytes = 0;
-		do {
+
 			nbytes = read(fd[0], readbuffer, sizeof(readbuffer));
 			if(nbytes == -1)
 			{
@@ -58,9 +59,7 @@ int main(void) {
 			{
 				printf("He recibido el string: %.*s", (int) nbytes, readbuffer);
 			}
-		} while(nbytes != 0);
 
-		wait(NULL);
 		exit(EXIT_SUCCESS);
 	}
 }
