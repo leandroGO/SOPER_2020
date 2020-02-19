@@ -4,11 +4,16 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <string.h>
+#include <time.h>
 
 int main(int argc, char** argv) {
 	pid_t h1, h2;
 	int fd1[2], fd2[2], f;
 	int x = 0;
+	char buf[50];
+
+	buf[0] = '\0';
 
 	if (pipe(fd1) == -1) {
 		perror("pipe");
@@ -60,13 +65,15 @@ int main(int argc, char** argv) {
 				return EXIT_FAILURE;
 			}
 
-			f = open("numero_leido.txt", O_RDWR | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR | S_IXUSR | S_IROTH | S_IWOTH | S_IXOTH);
+			f = open("numero_leido.txt", O_RDWR | O_CREAT |O_TRUNC, S_IRUSR | S_IWUSR | S_IXUSR | S_IROTH | S_IWOTH | S_IXOTH);
 			if (f < 0) {
 				perror("open");
 				return EXIT_FAILURE;
 			}
 
-			if (write(f, &x, sizeof(int)) < sizeof(int)) {
+			sprintf(buf, "%d", x);
+
+			if (write(f, buf, strlen(buf)) < strlen(buf)) {
 				perror("write");
 				return EXIT_FAILURE;
 			}
@@ -81,6 +88,7 @@ int main(int argc, char** argv) {
 		/*Hijo 1*/
 		close(fd1[0]);
 
+		srand((unsigned) time(NULL));
 		x = rand();
 
 		if (write(fd1[1], &x, sizeof(int)) < sizeof(int)) {
