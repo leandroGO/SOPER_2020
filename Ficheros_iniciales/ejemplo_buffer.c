@@ -8,7 +8,8 @@ int main(void)
 {
 	pid_t pid;
 
-	printf("Yo soy tu padre");
+	printf("Yo soy tu padre\n");
+	fflush(stdout);
 
 	pid = fork();
 	if(pid <  0)
@@ -18,7 +19,7 @@ int main(void)
 	}
 	else if(pid ==  0)
 	{
-		printf("Noooooo");
+		printf("Noooooo\n");
 		exit(EXIT_SUCCESS);
 	}
 
