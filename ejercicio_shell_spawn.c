@@ -1,3 +1,12 @@
+/**
+ * Fichero: ejercicio_shell.txt
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 15/02/2020
+ * Descripcion: Implementa una shell rudimentaria (con spawn).
+ */
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdio.h>
