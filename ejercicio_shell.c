@@ -1,3 +1,12 @@
+/**
+ * Fichero: ejercicio_shell.txt
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 15/02/2020
+ * Descripcion: Implementa una shell rudimentaria.
+ */
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdio.h>
@@ -23,7 +32,7 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 
-		s[strcspn(s, "\n")] = '\0'; //removing newline
+		s[strcspn(s, "\n")] = '\0'; //eliminando newline
 
 		if ( (error = wordexp(s, &exp, 0)) ) {
 			fprintf(stderr, "wordexp: %s\n", strerror(error));

@@ -1,3 +1,13 @@
+/**
+ * Fichero: ejercicio_hilos.txt
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 15/02/2020
+ * Descripcion: Programa que genera hilos como se indica en el
+ *  ejercicio 6.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,11 +17,24 @@
 #define SUP 10
 #define INF 0
 
+/**
+ * Almacena la informacion asociada a un hilo que se manipula en
+ * funcion().
+ */
 typedef struct {
-    int sleep_time;
-    int x;
+    int sleep_time; //Tiempo que debe esperar el hilo
+    int x;          //Numero de hilo
 } thread_info;
 
+/**
+ * Nombre: funcion
+ * 
+ * Descripcion: Espera un numero de segundos y almacena en un nuevo
+ *  entero el cubo de un valor pasado por parametro.
+ * Parametro: ti puntero a void (se hace cast a thread_info*) que 
+ *  almacena el tiempo a esperar y el valor a elevar al cubo.
+ * Retorno: la direccion del entero creado (almacena x^3).
+ */
 void* funcion(void* ti) {
     int *ret_val = NULL;
     thread_info *cast = (thread_info*)ti;
