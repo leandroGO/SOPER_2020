@@ -23,6 +23,8 @@ int main(int argc, char** argv) {
 	h1 = fork();
 	if (h1 == -1) {
 		perror("fork");
+		close(fd1[1]);
+		close(fd1[0]);
 		return EXIT_FAILURE;
 	}
 
@@ -31,12 +33,16 @@ int main(int argc, char** argv) {
 
 		if (pipe(fd2) == -1) {
 			perror("pipe");
+			close(fd1[0]);
 			return EXIT_FAILURE;
 		}
 
 		h2 = fork();
 		if (h2 == -1) {
 			perror("fork");
+			close(fd1[0]);
+			close(fd2[0]);
+			close(fd2[1]);
 			return EXIT_FAILURE;
 		}
 		else if (h2 > 0) {
@@ -45,11 +51,15 @@ int main(int argc, char** argv) {
 
 			if (read(fd1[0], &x, sizeof(int)) < sizeof(int)) {
 				perror("read");
+				close(fd1[0]);
+				close(fd2[1]);
 				return EXIT_FAILURE;
 			}
 
 			if (write(fd2[1], &x, sizeof(int)) < sizeof(int)) {
 				perror("write");
+				close(fd1[0]);
+				close(fd2[1]);
 				return EXIT_FAILURE;
 			}
 
@@ -58,23 +68,27 @@ int main(int argc, char** argv) {
 		}
 		else {
 			/*Hijo 2*/
+			close(fd1[0]);
 			close(fd2[1]);
 
 			if (read(fd2[0], &x, sizeof(int)) < sizeof(int)) {
 				perror("read");
+				close(fd2[0]);
 				return EXIT_FAILURE;
 			}
 
 			f = open("numero_leido.txt", O_RDWR | O_CREAT |O_TRUNC, S_IRUSR | S_IWUSR | S_IXUSR | S_IROTH | S_IWOTH | S_IXOTH);
 			if (f < 0) {
 				perror("open");
+				close(fd2[0]);
 				return EXIT_FAILURE;
 			}
 
-			sprintf(buf, "%d", x);
+			sprintf(buf, "%d\n", x);
 
 			if (write(f, buf, strlen(buf)) < strlen(buf)) {
 				perror("write");
+				close(fd2[0]);
 				return EXIT_FAILURE;
 			}
 
@@ -93,6 +107,7 @@ int main(int argc, char** argv) {
 
 		if (write(fd1[1], &x, sizeof(int)) < sizeof(int)) {
 			perror("write");
+			close(fd1[1]);
 			return EXIT_FAILURE;
 		}
 
