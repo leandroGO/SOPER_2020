@@ -1,5 +1,5 @@
 /**
- * Fichero: ejercicio_arbol.txt
+ * Fichero: ejercicio_arbol.c
  *
  * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
  *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     for (i = 0; i <= NUM_PROC; i++) {
         f = fork();
         if (f < 0) {
-            return 1;
+            exit(EXIT_FAILURE);
         }
         if (f > 0) {
             break;
@@ -35,5 +35,5 @@ int main(int argc, char** argv) {
     }
 
     wait(NULL);
-    return 0;
+    exit(EXIT_SUCCESS);
 }
