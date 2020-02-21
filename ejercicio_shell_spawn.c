@@ -1,5 +1,5 @@
 /**
- * Fichero: ejercicio_shell.txt
+ * Fichero: ejercicio_shell_spawn.c
  *
  * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
  *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)

@@ -1,5 +1,5 @@
 /**
- * Fichero: ejercicio_hilos.txt
+ * Fichero: ejercicio_hilos.c
  *
  * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
  *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
