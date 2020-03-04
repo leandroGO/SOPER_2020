@@ -14,6 +14,7 @@ int main(int argc, char** argv){
     pid = atoi(argv[2]);
 
     if (kill(pid, signal) == -1) {
+        perror("kill");
         exit(EXIT_FAILURE);
     }
 
