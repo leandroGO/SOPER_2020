@@ -8,12 +8,9 @@
 
 #define WAIT_N(num_wait) {int i_wait; for (i_wait = 0; i_wait < num_wait; i_wait++) wait(NULL);}
 
-static int global_SIGALRM_flag = 0;
 static int global_SIGUSR2_count = 0;
 
-void manejador_SIGALRM(int sig) {
-    global_SIGALRM_flag = 1;
-}
+void manejador_SIGALRM(int sig) {}
 
 void manejador_SIGUSR2(int sig) {
     global_SIGUSR2_count++;
@@ -79,7 +76,6 @@ int main(int argc, char **argv) {
     sigfillset(&wait_alarm);
     sigfillset(&wait_term);
     sigdelset(&wait_alarm, SIGALRM);
-    sigdelset(&wait_alarm, SIGUSR2);    //Permite recibir SIGUSR2 mientras se espera la alarma
     sigdelset(&wait_term, SIGTERM);
     
     /*Definiendo manejador_SIGUSR2 como rutina de tratamiento*/
@@ -141,9 +137,7 @@ int main(int argc, char **argv) {
     if (alarm(T)) {
         fprintf(stderr, "Existe una alarma previa establecida\n");
     }
-    do {
-        sigsuspend(&wait_alarm);
-    } while (!global_SIGALRM_flag);
+    sigsuspend(&wait_alarm);
 
     if (sigprocmask(SIG_SETMASK, &oldset, NULL) < 0) {
         perror("sigprocmask");
@@ -155,7 +149,7 @@ int main(int argc, char **argv) {
     for (i = 0; i < N; i++) {
         if (kill(hijos[i], SIGTERM) < 0) {
             perror("kill");
-            WAIT_N(N - i);
+            WAIT_N(N);
             exit(EXIT_FAILURE);
         }
     }
