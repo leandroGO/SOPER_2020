@@ -3,7 +3,7 @@ CFLAGS = -Wall
 
 .PHONY: clean
 
-all: ejercicio_kill
+all: ejercicio_kill ejercicio_prottemp
 
 # ENLAZADO #
 ejercicio_kill: ejercicio_kill.o
