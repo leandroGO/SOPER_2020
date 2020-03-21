@@ -26,7 +26,7 @@ int main(void) {
     act.sa_flags = 0;
 
     /* Se arma la señal SIGINT. */
-    act.sa_handler = manejador;
+    act.sa_handler = SIG_IGN;
     if (sigaction(SIGINT, &act, NULL) < 0) {
         perror("sigaction");
         exit(EXIT_FAILURE);
