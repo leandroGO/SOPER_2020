@@ -12,7 +12,7 @@
 
 #define WAIT_N(num_wait) {int i_wait; for (i_wait = 0; i_wait < num_wait; i_wait++) wait(NULL);}
 #define N_READ 10
-#define SECS 1
+#define SECS 0
 #define SEM_W "/sem_w"
 #define SEM_R "/sem_r"
 #define SEM_COUNT "/sem_count"
@@ -40,7 +40,7 @@ void escritura() {
 }
 
 int main(int argc, char** argv) {
-    int i, *count = NULL;
+    int i, count = 0;
     pid_t pid;
     pid_t hijos[N_READ];
     struct sigaction s_int;
@@ -111,11 +111,11 @@ int main(int argc, char** argv) {
             while(1) {
                 sem_wait(sem_r);
                 sem_post(sem_count);
-                if (sem_getvalue(sem_count, count) == -1) {
+                if (sem_getvalue(sem_count, &count) == -1) {
                     perror("sem_getvalue");
                     exit(EXIT_FAILURE);
                 }
-                if (*count == 1) {
+                if (count == 1) {
                     sem_wait(sem_w);
                 }
                 sem_post(sem_r);
@@ -124,16 +124,16 @@ int main(int argc, char** argv) {
 
                 sem_wait(sem_r);
                 sem_wait(sem_count);
-                if (sem_getvalue(sem_count, count) == -1) {
+                if (sem_getvalue(sem_count, &count) == -1) {
                     perror("sem_getvalue");
                     exit(EXIT_FAILURE);
                 }
-                if (*count == 0) {
+                if (count == 0) {
                     sem_post(sem_w);
                 }
                 sem_post(sem_r);
 
-                sleep(SECS);
+                //sleep(SECS);
             }
             exit(EXIT_SUCCESS);
         }
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
         escritura();
         sem_post(sem_w);
 
-        sleep(SECS);
+        //sleep(SECS);
     }
 
     for (i = 0; i < N_READ; i++) {
