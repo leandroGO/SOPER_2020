@@ -151,7 +151,6 @@ int main(int argc, char **argv) {
     if ((sem = sem_open(SEM_NAME, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
         perror("sem_open");
         exit(EXIT_FAILURE);
-        sem_close(sem);
     }
     sem_unlink(SEM_NAME);
 
