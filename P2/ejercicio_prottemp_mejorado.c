@@ -209,13 +209,12 @@ int main(int argc, char **argv) {
 
             f = freopen(DATA, "r", f);
             if (f == NULL) {
-                WAIT_N(N);
                 sem_close(sem);
                 exit(EXIT_FAILURE);
             }
             if (fscanf(f, "%d\n%d", &foo, &res) < 0) {
+                perror("fscanf");
                 fclose(f);
-                WAIT_N(N);
                 sem_close(sem);
                 exit(EXIT_FAILURE);
             }
@@ -231,7 +230,7 @@ int main(int argc, char **argv) {
 
     if (sigprocmask(SIG_SETMASK, &oldset, NULL) < 0) {
         perror("sigprocmask");
-        WAIT_N(N);
+        //WAIT_N(N);
         fclose(f);
         sem_close(sem);
         exit(EXIT_FAILURE);
@@ -241,7 +240,7 @@ int main(int argc, char **argv) {
     for (i = 0; i < N; i++) {
         if (kill(hijos[i], SIGTERM) < 0) {
             perror("kill");
-            WAIT_N(N);
+            //WAIT_N(N);
             fclose(f);
             sem_close(sem);
             exit(EXIT_FAILURE);
@@ -249,13 +248,13 @@ int main(int argc, char **argv) {
     }
 
     if ((f = freopen(DATA, "r", f)) == NULL) {
-        WAIT_N(N);
+        //WAIT_N(N);
         sem_close(sem);
         exit(EXIT_FAILURE);
     }
     if (fscanf(f, "%d\n%d", &foo, &res) < 0) {
         fclose(f);
-        WAIT_N(N);
+        //WAIT_N(N);
         sem_close(sem);
         exit(EXIT_FAILURE);
     }
