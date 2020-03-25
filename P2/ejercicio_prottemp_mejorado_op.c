@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     pid_t *hijos;
     sem_t *sem;
     struct sigaction s_term;
-    sigset_t block_term, wait_term, oldset;
+    sigset_t block_term, wait_term, oldset;lk
 
     if (argc != 2 || (N = atoi(argv[1])) < 0) {
         fprintf(stdout, "ERROR: Deberia ser %s <N> (con N no negativo).\n", argv[0]);
