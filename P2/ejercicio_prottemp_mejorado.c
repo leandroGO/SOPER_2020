@@ -14,7 +14,6 @@
 #define SEM_NAME "/sem_rw"
 
 static int global_SIGUSR2_count;
-static sem_t *sem;
 static int alarma = 0;
 
 void manejador_SIGALRM(int sig) {
@@ -22,16 +21,7 @@ void manejador_SIGALRM(int sig) {
 }
 
 void manejador_SIGUSR2(int sig) {
-    global_SIGUSR2_count--; 
-
-    if (global_SIGUSR2_count == 0) {
-        if (kill(getpid(), SIGALRM) < 0) {
-            perror("kill");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    sem_post(sem);
+    global_SIGUSR2_count++; 
 }
 
 void manejador_SIGTERM(int sig) {
@@ -40,7 +30,7 @@ void manejador_SIGTERM(int sig) {
     exit(EXIT_SUCCESS);
 }
 
-void trabajo(FILE *f) {
+void trabajo(FILE *f, sem_t *sem) {
     int i, n = 0, t = 0;
     int suma;
     pid_t pid = getpid();
@@ -81,13 +71,13 @@ int main(int argc, char **argv) {
     sigset_t block_alarm, wait_alarm;
     sigset_t block_term, wait_term;
     sigset_t block_u2, oldset;
+    sem_t *sem;
 
     if (argc != 3 || (N = atoi(argv[1])) < 0 || (T = atoi(argv[2])) < 0) {
         fprintf(stdout, "ERROR: Deberia ser %s <N> <T> (con N,T no negativos).\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    global_SIGUSR2_count = N;
 
     if ((hijos = (pid_t*)malloc(N * sizeof(pid_t))) == NULL) { //Esta memoria se libera al hacer exit
         perror("malloc");
@@ -154,22 +144,6 @@ int main(int argc, char **argv) {
     }
     sem_unlink(SEM_NAME);
 
-    /*Definiendo manejador_SIGALARM como rutina de tratamiento*/
-    if (sigprocmask(SIG_BLOCK, &block_alarm, &oldset) < 0) {
-        perror("sigprocmask");
-        WAIT_N(N);
-        fclose(f);
-        sem_close(sem);
-        exit(EXIT_FAILURE);
-    }
-    if (sigaction(SIGALRM, &s_alarm, NULL) < 0) {
-        perror("sigaction");
-        WAIT_N(N);
-        fclose(f);
-        sem_close(sem);
-        exit(EXIT_FAILURE);
-    }
-
     /*Creando hijos*/
     for (i = 0; i < N; i++) {
         if ((error = fork()) < 0) {
@@ -181,7 +155,7 @@ int main(int argc, char **argv) {
             exit(EXIT_FAILURE);
         }
         if (!error) {
-            trabajo(f);
+            trabajo(f, sem);
             if (kill(ppid, SIGUSR2) < 0) {
                 perror("kill");
                 fclose(f);
@@ -204,13 +178,54 @@ int main(int argc, char **argv) {
         }
     }
 
+    /*Definiendo manejador_SIGALARM como rutina de tratamiento*/
+    if (sigprocmask(SIG_BLOCK, &block_alarm, &oldset) < 0) {
+        perror("sigprocmask");
+        WAIT_N(N);
+        fclose(f);
+        sem_close(sem);
+        exit(EXIT_FAILURE);
+    }
+    if (sigaction(SIGALRM, &s_alarm, NULL) < 0) {
+        perror("sigaction");
+        WAIT_N(N);
+        fclose(f);
+        sem_close(sem);
+        exit(EXIT_FAILURE);
+    }
+
     
     /*Espera*/
     if (alarm(T)) {
         fprintf(stderr, "Existe una alarma previa establecida\n");
     }
+
+
     while (alarma == 0) {
         sigsuspend(&wait_alarm);
+
+        if (alarma == 0) {
+            sem_wait(sem);
+
+            f = freopen(DATA, "r", f);
+            if (f == NULL) {
+                WAIT_N(N);
+                sem_close(sem);
+                exit(EXIT_FAILURE);
+            }
+            if (fscanf(f, "%d\n%d", &foo, &res) < 0) {
+                fclose(f);
+                WAIT_N(N);
+                sem_close(sem);
+                exit(EXIT_FAILURE);
+            }
+            
+            sem_post(sem);
+
+            if (foo == N) {
+                break;
+            }
+        }
     }
 
 
@@ -245,7 +260,7 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    if (global_SIGUSR2_count > 0) {
+    if (foo != N) {
         printf("Falta trabajo\n");
     }
     else {
@@ -254,7 +269,7 @@ int main(int argc, char **argv) {
 
     /*Salida*/
     WAIT_N(N);
-    printf("Finalizado padre (SIGUSR2: %d)\n", N - global_SIGUSR2_count);
+    printf("Finalizado padre (SIGUSR2: %d)\n", global_SIGUSR2_count);
     fflush(stdout);
     fclose(f);
     sem_close(sem);

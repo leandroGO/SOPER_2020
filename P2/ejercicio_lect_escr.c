@@ -12,7 +12,7 @@
 
 #define WAIT_N(num_wait) {int i_wait; for (i_wait = 0; i_wait < num_wait; i_wait++) wait(NULL);}
 #define N_READ 10
-#define SECS 0
+#define SECS 1
 #define SEM_W "/sem_w"
 #define SEM_R "/sem_r"
 #define SEM_COUNT "/sem_count"
@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
                 }
                 sem_post(sem_r);
 
-                //sleep(SECS);
+                sleep(SECS);
             }
             exit(EXIT_SUCCESS);
         }
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
         escritura();
         sem_post(sem_w);
 
-        //sleep(SECS);
+        sleep(SECS);
     }
 
     for (i = 0; i < N_READ; i++) {
