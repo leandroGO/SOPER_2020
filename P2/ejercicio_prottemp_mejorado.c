@@ -13,7 +13,7 @@
 #define DATA "data.txt"
 #define SEM_NAME "/sem_rw"
 
-static int global_SIGUSR2_count;
+static int global_SIGUSR2_count = 0;
 static int alarma = 0;
 
 void manejador_SIGALRM(int sig) {
@@ -222,7 +222,35 @@ int main(int argc, char **argv) {
             sem_post(sem);
 
             if (foo == N) {
-                break;
+                if (sigprocmask(SIG_SETMASK, &oldset, NULL) < 0) {
+                    perror("sigprocmask");
+                    fclose(f);
+                    sem_close(sem);
+                    exit(EXIT_FAILURE);
+                }
+
+                /*Enviando señales*/
+                for (i = 0; i < N; i++) {
+                    if (kill(hijos[i], SIGTERM) < 0) {
+                        perror("kill");
+                        WAIT_N(i);
+                        fclose(f);
+                        sem_close(sem);
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
+                printf("Han acabado todos, resultado: %d\n", res);
+            
+            
+                /*Salida*/
+                WAIT_N(N);
+                printf("Finalizado padre (SIGUSR2: %d)\n", global_SIGUSR2_count);
+                fflush(stdout);
+                fclose(f);
+                sem_close(sem);
+                exit(EXIT_SUCCESS);
+                    
             }
         }
     }
@@ -230,7 +258,6 @@ int main(int argc, char **argv) {
 
     if (sigprocmask(SIG_SETMASK, &oldset, NULL) < 0) {
         perror("sigprocmask");
-        //WAIT_N(N);
         fclose(f);
         sem_close(sem);
         exit(EXIT_FAILURE);
@@ -240,32 +267,16 @@ int main(int argc, char **argv) {
     for (i = 0; i < N; i++) {
         if (kill(hijos[i], SIGTERM) < 0) {
             perror("kill");
-            //WAIT_N(N);
+            WAIT_N(i);
             fclose(f);
             sem_close(sem);
             exit(EXIT_FAILURE);
         }
     }
 
-    if ((f = freopen(DATA, "r", f)) == NULL) {
-        //WAIT_N(N);
-        sem_close(sem);
-        exit(EXIT_FAILURE);
-    }
-    if (fscanf(f, "%d\n%d", &foo, &res) < 0) {
-        fclose(f);
-        //WAIT_N(N);
-        sem_close(sem);
-        exit(EXIT_FAILURE);
-    }
-
-    if (foo != N) {
-        printf("Falta trabajo\n");
-    }
-    else {
-        printf("Han acabado todos, resultado: %d\n", res);
-    }
-
+    printf("Falta trabajo\n");
+    
+    
     /*Salida*/
     WAIT_N(N);
     printf("Finalizado padre (SIGUSR2: %d)\n", global_SIGUSR2_count);
