@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
 
     /*Salida*/
     WAIT_N(N);
-    printf("Finalizado padre");
+    printf("Finalizado padre\n");
     fflush(stdout);
     fclose(f);
     sem_close(sem);
