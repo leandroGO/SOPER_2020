@@ -27,8 +27,9 @@ void trabajo() {
     int suma;
     pid_t pid = getpid();
 
-    for (i = 1, suma = 0; i < pid/10; i++)
+    for (i = 1, suma = 0; i < pid/10; i++) {
         suma += i;
+    }
 
     printf("PID:%d SUM:%d\n", pid, suma);
     fflush(stdout);
@@ -122,7 +123,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    /*Definiendo manejador_SIGTERM como rutina de tratamiento*/
+    /*Definiendo manejador_SIGALRM como rutina de tratamiento*/
     if (sigprocmask(SIG_BLOCK, &block_alarm, &oldset) < 0) {
         perror("sigprocmask");
         WAIT_N(N);
@@ -149,7 +150,7 @@ int main(int argc, char **argv) {
     for (i = 0; i < N; i++) {
         if (kill(hijos[i], SIGTERM) < 0) {
             perror("kill");
-            WAIT_N(N);
+            WAIT_N(i);
             exit(EXIT_FAILURE);
         }
     }

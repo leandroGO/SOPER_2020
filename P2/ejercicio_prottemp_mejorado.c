@@ -13,16 +13,13 @@
 #define DATA "data.txt"
 #define SEM_NAME "/sem_rw"
 
-static int global_SIGUSR2_count = 0;
 static int alarma = 0;
 
 void manejador_SIGALRM(int sig) {
     alarma = 1;
 }
 
-void manejador_SIGUSR2(int sig) {
-    global_SIGUSR2_count++; 
-}
+void manejador_SIGUSR2(int sig) {}
 
 void manejador_SIGTERM(int sig) {
     printf("Finalizado %d\n", getpid());
@@ -64,7 +61,7 @@ void trabajo(FILE *f, sem_t *sem) {
 
 int main(int argc, char **argv) {
     FILE *f = NULL;
-    int N, T, i, error, res, foo;
+    int N, T, i, error, res, count = 0;
     pid_t ppid = getpid();
     pid_t *hijos;
     struct sigaction s_alarm, s_u2, s_term;
@@ -101,13 +98,14 @@ int main(int argc, char **argv) {
     sigemptyset(&block_term);
     sigemptyset(&block_u2);
     sigaddset(&block_alarm, SIGALRM);
+    sigaddset(&block_alarm, SIGUSR2);   //Tambien queremos bloquear SIGUSR2
     sigaddset(&block_u2, SIGUSR2);
     sigaddset(&block_term, SIGTERM);
 
     sigfillset(&wait_alarm);
     sigfillset(&wait_term);
     sigdelset(&wait_alarm, SIGALRM);
-    sigdelset(&wait_alarm, SIGUSR2);
+    sigdelset(&wait_alarm, SIGUSR2);    //Tambien queremos atender SIGUSR2
     sigdelset(&wait_term, SIGTERM);
     
     /*Definiendo manejador_SIGUSR2 como rutina de tratamiento*/
@@ -137,7 +135,7 @@ int main(int argc, char **argv) {
     fflush(f);
     
 
-    /*Inicializando semaforo*/
+    /*Inicializando semaforo (mutex)*/
     if ((sem = sem_open(SEM_NAME, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
         perror("sem_open");
         exit(EXIT_FAILURE);
@@ -200,8 +198,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Existe una alarma previa establecida\n");
     }
 
-
-    while (alarma == 0) {
+    while (alarma == 0 && count < N) {
         sigsuspend(&wait_alarm);
 
         if (alarma == 0) {
@@ -212,7 +209,7 @@ int main(int argc, char **argv) {
                 sem_close(sem);
                 exit(EXIT_FAILURE);
             }
-            if (fscanf(f, "%d\n%d", &foo, &res) < 0) {
+            if (fscanf(f, "%d\n%d", &count, &res) < 0) {
                 perror("fscanf");
                 fclose(f);
                 sem_close(sem);
@@ -220,38 +217,6 @@ int main(int argc, char **argv) {
             }
             
             sem_post(sem);
-
-            if (foo == N) {
-                if (sigprocmask(SIG_SETMASK, &oldset, NULL) < 0) {
-                    perror("sigprocmask");
-                    fclose(f);
-                    sem_close(sem);
-                    exit(EXIT_FAILURE);
-                }
-
-                /*Enviando señales*/
-                for (i = 0; i < N; i++) {
-                    if (kill(hijos[i], SIGTERM) < 0) {
-                        perror("kill");
-                        WAIT_N(i);
-                        fclose(f);
-                        sem_close(sem);
-                        exit(EXIT_FAILURE);
-                    }
-                }
-
-                printf("Han acabado todos, resultado: %d\n", res);
-            
-            
-                /*Salida*/
-                WAIT_N(N);
-                printf("Finalizado padre (SIGUSR2: %d)\n", global_SIGUSR2_count);
-                fflush(stdout);
-                fclose(f);
-                sem_close(sem);
-                exit(EXIT_SUCCESS);
-                    
-            }
         }
     }
 
@@ -274,12 +239,16 @@ int main(int argc, char **argv) {
         }
     }
 
-    printf("Falta trabajo\n");
+    if (count == N) {
+        printf("Han acabado todos, resultado: %d\n", res);
+    } else {
+        printf("Falta trabajo\n");
+    }
     
     
     /*Salida*/
     WAIT_N(N);
-    printf("Finalizado padre (SIGUSR2: %d)\n", global_SIGUSR2_count);
+    printf("Finalizado padre\n");
     fflush(stdout);
     fclose(f);
     sem_close(sem);
