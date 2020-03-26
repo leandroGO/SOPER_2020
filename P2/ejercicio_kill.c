@@ -1,3 +1,13 @@
+/**
+ * Fichero: ejercicio_kill.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 05/03/2020
+ * Descripcion: Programa que envia una sennal a un proceso, ambos
+ *  indicados en los argumentos.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>

@@ -1,3 +1,13 @@
+/**
+ * Fichero: ejercicio_prottemp_mejorado.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 26/03/2020
+ * Descripcion: Modificacion de ejercicio_prottemp.c para incluir
+ *  los requisitos descritos en el ejercicio 12.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,20 +23,48 @@
 #define DATA "data.txt"
 #define SEM_NAME "/sem_rw"
 
-static int alarma = 0;
+static int alarma = 0;  //Bandera que indica la atencion a SIGALRM
 
+/**
+ * Nombre: manejador_SIGALRM
+ * 
+ * Descripcion: La rutina de atencion a SIGALRM.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador_SIGALRM(int sig) {
     alarma = 1;
 }
 
+/**
+ * Nombre: manejador_SIGUSR2
+ * 
+ * Descripcion: La rutina de atencion a SIGUSR2.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador_SIGUSR2(int sig) {}
 
+/**
+ * Nombre: manejador_SIGTERM
+ * 
+ * Descripcion: La rutina de atencion a SIGTERM.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador_SIGTERM(int sig) {
     printf("Finalizado %d\n", getpid());
     fflush(stdout);
     exit(EXIT_SUCCESS);
 }
 
+/**
+ * Nombre: trabajo
+ * 
+ * Descripcion: El trabajo que realiza cada hijo.
+ * Parametros:
+ *  -f puntero a FILE que el proceso va a leer y
+ *   escribir.
+ *  -sem el semaforo que protege el acceso al
+ *   fichero.
+ */
 void trabajo(FILE *f, sem_t *sem) {
     int i, n = 0, t = 0;
     int suma;

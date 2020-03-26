@@ -1,3 +1,14 @@
+/**
+ * Fichero: ejercicio_prottemp.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 11/02/2020
+ * Descripcion: Programa que genera N hijos (que realizaran un 
+ *  trabajo) y espera a que terminen o a que pasen T segundos para
+ *  finalizar estos procesos. N y T se indican en los argumentos.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,20 +19,43 @@
 
 #define WAIT_N(num_wait) {int i_wait; for (i_wait = 0; i_wait < num_wait; i_wait++) wait(NULL);}
 
-static int global_SIGUSR2_count = 0;
+static int global_SIGUSR2_count = 0; //Lleva la cuenta de las SIGUSR2 recibidas por el padre
 
+/**
+ * Nombre: manejador_SIGALRM
+ * 
+ * Descripcion: La rutina de atencion a SIGALRM.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador_SIGALRM(int sig) {}
 
+/**
+ * Nombre: manejador_SIGUSR2
+ * 
+ * Descripcion: La rutina de atencion a SIGUSR2.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador_SIGUSR2(int sig) {
     global_SIGUSR2_count++;
 }
 
+/**
+ * Nombre: manejador_SIGTERM
+ * 
+ * Descripcion: La rutina de atencion a SIGTERM.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador_SIGTERM(int sig) {
     printf("Finalizado %d\n", getpid());
     fflush(stdout);
     exit(EXIT_SUCCESS);
 }
 
+/**
+ * Nombre: trabajo
+ * 
+ * Descripcion: El trabajo que realiza cada hijo.
+ */
 void trabajo() {
     int i;
     int suma;

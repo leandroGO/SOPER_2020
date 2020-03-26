@@ -1,3 +1,13 @@
+/**
+ * Fichero: ejercicio_lect_escr.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 24/03/2020
+ * Descripcion: Programa que implementa una solucion al problema
+ * de lectores/escritores con prioridad a los lectores.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <semaphore.h>
@@ -17,12 +27,23 @@
 #define SEM_R "/sem_r"
 #define SEM_COUNT "/sem_count"
 
-static int end = 0;
+static int end = 0; //Bandera que indica la atencion a SIGINT
 
+/**
+ * Nombre: manejador_SIGINT
+ * 
+ * Descripcion: La rutina de atencion a SIGINT.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador_SIGINT() {
     end = 1;
 }
 
+/**
+ * Nombre: lectura
+ * 
+ * Descripcion: Simula una lectura.
+ */
 void lectura() {
     printf("R-INI %d\n", getpid());
     fflush(stdout);
@@ -31,12 +52,39 @@ void lectura() {
     fflush(stdout);
 }
 
+/**
+ * Nombre: escritura
+ * 
+ * Descripcion: Simula una escritura.
+ */
 void escritura() {
     printf("W-INI %d\n", getpid());
     fflush(stdout);
     sleep(1);
     printf("W-FIN %d\n", getpid());
     fflush(stdout);
+}
+
+/**
+ * Nombre: cleanUp
+ * 
+ * Descripcion: Cierra los semaforos y termina
+ *  el proceso.
+ * Parametros:
+ *  -sem1, sem2, sem3 los semaforos a cerrar.
+ *  -status el estado de finalizacion del proceso.
+ */
+void cleanUp(sem_t *sem1, sem_t *sem2, sem_t *sem3, int status) {
+    if (sem1 != NULL) {
+        sem_close(sem1);
+    }
+    if (sem2 != NULL) {
+        sem_close(sem2);
+    }
+    if (sem3 != NULL) {
+        sem_close(sem3);
+    }
+    exit(status);
 }
 
 int main(int argc, char** argv) {
@@ -79,16 +127,13 @@ int main(int argc, char** argv) {
 
     if ((sem_w = sem_open(SEM_W, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
         perror("sem_open");
-        sem_close(sem_r);
-        exit(EXIT_FAILURE);
+        cleanUp(sem_r, NULL, NULL, EXIT_FAILURE);
     }
     sem_unlink(SEM_W);
 
     if ((sem_count = sem_open(SEM_COUNT, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
         perror("sem_open");
-        sem_close(sem_r);
-        sem_close(sem_w);
-        exit(EXIT_FAILURE);
+        cleanUp(sem_r, sem_w, NULL, EXIT_FAILURE);
     }
     sem_unlink(SEM_COUNT);
 
@@ -100,10 +145,7 @@ int main(int argc, char** argv) {
             for (; i > 0; i--) {
                 wait(NULL);
             }
-            sem_close(sem_r);
-            sem_close(sem_w);
-            sem_close(sem_count);
-            exit(EXIT_FAILURE);
+            cleanUp(sem_r, sem_w, sem_count, EXIT_FAILURE);
         }
 
         else if (pid == 0) {
@@ -115,7 +157,7 @@ int main(int argc, char** argv) {
                     perror("sem_getvalue");
                     exit(EXIT_FAILURE);
                 }
-                if (count == 1) {
+                if (count == 1) {   //LightSwitchOn
                     sem_wait(sem_w);
                 }
                 sem_post(sem_r);
@@ -128,7 +170,7 @@ int main(int argc, char** argv) {
                     perror("sem_getvalue");
                     exit(EXIT_FAILURE);
                 }
-                if (count == 0) {
+                if (count == 0) { //LightSwitchOff
                     sem_post(sem_w);
                 }
                 sem_post(sem_r);
@@ -154,18 +196,11 @@ int main(int argc, char** argv) {
     for (i = 0; i < N_READ; i++) {
         if (kill(hijos[i], SIGTERM) < 0) {
             perror("kill");
-            WAIT_N(N_READ);
-            sem_close(sem_r);
-            sem_close(sem_w);
-            sem_close(sem_count);
-            exit(EXIT_FAILURE);
+            WAIT_N(i);
+            cleanUp(sem_r, sem_w, sem_count, EXIT_FAILURE);
         }
     }
 
     WAIT_N(N_READ);
-    sem_close(sem_r);
-    sem_close(sem_w);
-    sem_close(sem_count);
-
-    exit(EXIT_SUCCESS);
+    cleanUp(sem_r, sem_w, sem_count, EXIT_SUCCESS);
 }

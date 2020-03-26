@@ -1,3 +1,13 @@
+/**
+ * Fichero: ejercicio_prottemp_mejorado_op.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 26/03/2020
+ * Descripcion: Modificacion de ejercicio_prottemp_mejorado.c para
+ *  incluir los requisitos descritos en el ejercicio 13.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,17 +24,38 @@
 #define SEM_NAME "/sem_rw"
 #define SEM_COUNT_NAME "/sem_count"
 
+static sem_t *sem_count = NULL; //Semaforo que se abre cuando han escrito todos los hijos
 
-static sem_t *sem_count = NULL;
-
+/**
+ * Nombre: manejador_SIGUSR2
+ * 
+ * Descripcion: La rutina de atencion a SIGUSR2.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador_SIGUSR2(int sig) {}
 
+/**
+ * Nombre: manejador_SIGTERM
+ * 
+ * Descripcion: La rutina de atencion a SIGTERM.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador_SIGTERM(int sig) {
     printf("Finalizado %d\n", getpid());
     fflush(stdout);
     exit(EXIT_SUCCESS);
 }
 
+/**
+ * Nombre: trabajo
+ * 
+ * Descripcion: El trabajo que realiza cada hijo.
+ * Parametros:
+ *  -f puntero a FILE que el proceso va a leer y
+ *   escribir.
+ *  -sem el semaforo que protege el acceso al
+ *   fichero.
+ */
 void trabajo(FILE *f, sem_t *sem, int N) {
     int i, n = 0, t = 0;
     int suma;
@@ -55,7 +86,7 @@ void trabajo(FILE *f, sem_t *sem, int N) {
     fflush(f);
 
     if (n + 1 ==  N) {
-        sem_post(sem_count);
+        sem_post(sem_count);    //El ultimo desbloquea al padre
     }
 
     sem_post(sem);
