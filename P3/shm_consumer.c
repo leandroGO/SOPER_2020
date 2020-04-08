@@ -6,16 +6,17 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <semaphore.h>
 #include "shm_producer_consumer.h"
 
 int main(int argc, char *argv[]) {
     int hist[SUP] = {0};
-    int aux;
+    int i, aux;
     int fd;
     Info *info;
 
     /*Accediendo a la memoria compartida*/
-    fd = shm_open(SHM_NAME, O_RDWR);
+    fd = shm_open(SHM_NAME, O_RDWR, 0);
     if (fd < 0) {
         perror("shm_open");
         exit(EXIT_FAILURE);
@@ -31,12 +32,12 @@ int main(int argc, char *argv[]) {
 
     /*Consumiendo*/
     do {
-        sem_wait(info->fill)
-        sem_wait(info->mutex)
+        sem_wait(&info->fill);
+        sem_wait(&info->mutex);
         aux = info->queue.data[info->queue.front];
         info->queue.front = (info->queue.front + 1) % SUP;
-        sem_signal(info->mutex)
-        sem_signal(info->empty)
+        sem_post(&info->mutex);
+        sem_post(&info->empty);
 
         if (aux >= 0) {
             hist[aux]++;
