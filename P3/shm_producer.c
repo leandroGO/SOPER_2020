@@ -8,11 +8,92 @@
 #include <unistd.h>
 #include "shm_producer_consumer.h"
 
+void clean_up(Info *info, char *shm_name, int ret) {
+    if (info != NULL) {
+        if (info->mutex != NULL) sem_destroy(info->mutex);
+        if (info->empty != NULL) sem_destroy(info->empty);
+        if (info->fill  != NULL) sem_destroy(info->fill);
+        munmap(info, sizeof(*info));
+    }
+
+    if (shm_name != NULL) {
+        shm_unlink(shm_name);
+    }
+
+    exit(ret);
+}
+
 int main(int argc, char *argv[]) {
     int N, rand;
+    int fd;
+    int i, aux;
+    Info *info;
 
     if (argc != 3 || (N = atoi(argv[1])) < 0 || (rand = atoi(argv[2])) < 0 || rand > 1) {
         printf("ERROR: deberia ser %s <N> <rand> (con N no negativo y rand 0 o 1)\n", argv[0]);
         exit(EXIT_FAILURE);
     }
+
+    /*Creando objeto de memoria compartida*/
+    fd = shm_open(SHM_NAME, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        perror("shm_open");
+        exit(EXIT_FAILURE);
+    }
+    if (ftruncate(fd, sizeof(Info)) < 0) {
+        perror("ftruncate");
+        clean_up(NULL, SHM_NAME, EXIT_FAILURE);
+    }
+
+    /*Mapeando*/
+    info = mmap(NULL, sizeof(Info), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+    if (info == MAP_FAILED) {
+        perror("mmap");
+        clean_up(NULL, SHM_NAME, EXIT_FAILURE);
+    }
+
+    /*Inicializando memoria*/
+    info->mutex = info->empty = info->fill = NULL;
+    if (sem_init(info->mutex, 1, 1) < 0) {
+        perror("sem_init (mutex)");
+        clean_up(info, SHM_NAME, EXIT_FAILURE);
+    }
+
+    if (sem_init(info->empty, 1, Q_SIZE) < 0) {
+        perror("sem_init (empty)");
+        clean_up(info, SHM_NAME, EXIT_FAILURE);
+    }
+
+    if (sem_init(info->fill, 1, 0) < 0) {
+        perror("sem_init (fill)");
+        clean_up(info, SHM_NAME, EXIT_FAILURE);
+    }
+
+    info->queue.rear = info->queue.front = 0;
+
+    /*Produciendo*/
+    for (i = 0; i < N; i++) {
+        switch (rand) {
+            case 0: aux = rand() % SUP; break;
+            case 1: aux = i % SUP; break;
+            default: aux = -1;
+        }
+        sem_wait(info->empty);
+        sem_wait(info->mutex);
+        info->queue.data[info->queue.rear] = aux;
+        info->queue.rear = (info->queue.rear + 1) % SUP;
+        sem_signal(info->mutex);
+        sem_signal(info->fill);
+    }
+
+    sem_wait(info->empty);
+    sem_wait(info->mutex);
+    info->queue.data[info->queue.rear] = -1;    //ultimo elemento
+    info->queue.rear = (info->queue.rear + 1) % SUP;
+    sem_signal(info->mutex);
+    sem_signal(info->fill);
+
+    /*Terminando*/
+    clean_up(info, SHM_NAME, EXIT_SUCCESS);
 }
