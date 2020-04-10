@@ -98,5 +98,5 @@ int main(int argc, char *argv[]) {
     sem_post(&info->fill);
 
     /*Terminando*/
-    clean_up(info, SHM_NAME, EXIT_SUCCESS);
+    clean_up(info, NULL, EXIT_SUCCESS);
 }

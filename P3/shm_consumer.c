@@ -53,6 +53,7 @@ int main(int argc, char *argv[]) {
     sem_destroy(&info->mutex);
     sem_destroy(&info->empty);
     sem_destroy(&info->fill);
+    shm_unlink(SHM_NAME);
     munmap(info, sizeof(*info));
     exit(EXIT_SUCCESS);
 }
