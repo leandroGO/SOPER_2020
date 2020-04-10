@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
         sem_wait(&info->empty);
         sem_wait(&info->mutex);
         info->queue.data[info->queue.rear] = aux;
-        info->queue.rear = (info->queue.rear + 1) % SUP;
+        info->queue.rear = (info->queue.rear + 1) % Q_SIZE;
         sem_post(&info->mutex);
         sem_post(&info->fill);
     }
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     sem_wait(&info->empty);
     sem_wait(&info->mutex);
     info->queue.data[info->queue.rear] = -1;    //ultimo elemento
-    info->queue.rear = (info->queue.rear + 1) % SUP;
+    info->queue.rear = (info->queue.rear + 1) % Q_SIZE;
     sem_post(&info->mutex);
     sem_post(&info->fill);
 

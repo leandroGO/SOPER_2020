@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
         sem_wait(&info->fill);
         sem_wait(&info->mutex);
         aux = info->queue.data[info->queue.front];
-        info->queue.front = (info->queue.front + 1) % SUP;
+        info->queue.front = (info->queue.front + 1) % Q_SIZE;
         sem_post(&info->mutex);
         sem_post(&info->empty);
 
