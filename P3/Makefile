@@ -3,7 +3,7 @@ CFLAGS = -Wall
 
 .PHONY: clean
 
-all: shm_producer shm_consumer
+all: shm_producer shm_consumer shm_producer_file shm_consumer_file
 
 # ENLAZADO #
 shm_producer: shm_producer.o
@@ -12,11 +12,23 @@ shm_producer: shm_producer.o
 shm_consumer: shm_consumer.o
 	$(CC) -o $@ $^ -pthread -lrt
 
+shm_producer_file: shm_producer_file.o
+	$(CC) -o $@ $^ -pthread -lrt
+
+shm_consumer_file: shm_consumer_file.o
+	$(CC) -o $@ $^ -pthread -lrt
+
 # COMPILADO #
 shm_producer.o: shm_producer.c shm_producer_consumer.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 shm_consumer.o: shm_consumer.c shm_producer_consumer.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+shm_producer_file.o: shm_producer_file.c shm_producer_consumer.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+shm_consumer_file.o: shm_consumer_file.c shm_producer_consumer.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # MISC #

@@ -12,6 +12,7 @@
 #include <semaphore.h>
 
 #define SHM_NAME "/shm_producer_consumer"
+#define FILE_NAME "shm_producer_consumer.dat"
 #define SEM_P_NAME "/sem_p"
 #define SEM_C_NAME "/sem_c"
 #define Q_SIZE 30
