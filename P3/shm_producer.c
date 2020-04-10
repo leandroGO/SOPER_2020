@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <semaphore.h>
+#include <time.h>
 #include "shm_producer_consumer.h"
 
 void clean_up(Info *info, char *shm_name, int ret) {
@@ -31,6 +32,8 @@ int main(int argc, char *argv[]) {
         printf("ERROR: deberia ser %s <N> <rand_flag> (con N no negativo y rand_flag 0 o 1)\n", argv[0]);
         exit(EXIT_FAILURE);
     }
+
+    srand(time(NULL));
 
     /*Creando objeto de memoria compartida*/
     fd = shm_open(SHM_NAME, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
@@ -95,8 +98,5 @@ int main(int argc, char *argv[]) {
     sem_post(&info->fill);
 
     /*Terminando*/
-    sem_destroy(&info->mutex);
-    sem_destroy(&info->empty);
-    sem_destroy(&info->fill);
     clean_up(info, SHM_NAME, EXIT_SUCCESS);
 }

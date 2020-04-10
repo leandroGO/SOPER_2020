@@ -50,6 +50,9 @@ int main(int argc, char *argv[]) {
     }
 
     /*Terminando*/
+    sem_destroy(&info->mutex);
+    sem_destroy(&info->empty);
+    sem_destroy(&info->fill);
     munmap(info, sizeof(*info));
     exit(EXIT_SUCCESS);
 }
