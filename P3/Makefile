@@ -3,40 +3,34 @@ CFLAGS = -Wall
 
 .PHONY: clean
 
-all: ejercicio_kill ejercicio_prottemp ejercicio_prottemp_mejorado ejercicio_prottemp_mejorado_op ejercicio_lect_escr
+all: shm_producer shm_consumer shm_producer_file shm_consumer_file
 
 # ENLAZADO #
-ejercicio_kill: ejercicio_kill.o
-	$(CC) -o $@ $^
+shm_producer: shm_producer.o
+	$(CC) -o $@ $^ -pthread -lrt
 
-ejercicio_prottemp: ejercicio_prottemp.o
-	$(CC) -o $@ $^
+shm_consumer: shm_consumer.o
+	$(CC) -o $@ $^ -pthread -lrt
 
-ejercicio_prottemp_mejorado: ejercicio_prottemp_mejorado.o
-	$(CC) -o $@ $^ -pthread
+shm_producer_file: shm_producer_file.o
+	$(CC) -o $@ $^ -pthread -lrt
 
-ejercicio_prottemp_mejorado_op: ejercicio_prottemp_mejorado_op.o
-	$(CC) -o $@ $^ -pthread
-
-ejercicio_lect_escr: ejercicio_lect_escr.o
-	$(CC) -o $@ $^ -pthread
+shm_consumer_file: shm_consumer_file.o
+	$(CC) -o $@ $^ -pthread -lrt
 
 # COMPILADO #
-ejercicio_kill.o: ejercicio_kill.c
+shm_producer.o: shm_producer.c shm_producer_consumer.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-ejercicio_prottemp.o: ejercicio_prottemp.c
+shm_consumer.o: shm_consumer.c shm_producer_consumer.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-ejercicio_prottemp_mejorado.o: ejercicio_prottemp_mejorado.c
+shm_producer_file.o: shm_producer_file.c shm_producer_consumer.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-ejercicio_prottemp_mejorado_op.o: ejercicio_prottemp_mejorado_op.c
+shm_consumer_file.o: shm_consumer_file.c shm_producer_consumer.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-ejercicio_lect_escr.o: ejercicio_lect_escr.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-
+# MISC #
 clean:
 	rm -rf *.o
