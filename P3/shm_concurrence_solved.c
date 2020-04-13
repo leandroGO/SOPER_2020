@@ -120,6 +120,7 @@ int main(int argc, char** argv) {
     }
 
     /*Creacon de hijos*/
+    srand(time(NULL));
     padre = getpid();
     for (i = 0; i < N; i++) {
         pid = fork();
@@ -129,8 +130,7 @@ int main(int argc, char** argv) {
         }
         else if (pid == 0) {
             /*Rutina hijo*/
-            for (j = 0; j < M; j++) {    
-                srand(time(NULL));
+            for (j = 0; j < M; j++) {
                 t = ((rand()/RAND_MAX)*800000) + 100000;
                 usleep(t);
 
