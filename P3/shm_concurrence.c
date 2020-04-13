@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     shm_unlink(SHM_NAME);//Quitar
 
     if (argc != 3 || (N = atoi(argv[1])) < 0 || (M = atoi(argv[2])) < 0)  {
-        printf("%s <N> <M>", argv[0]);
+        printf("%s <N> <M>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
