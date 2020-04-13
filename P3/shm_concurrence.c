@@ -13,7 +13,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#define WAIT_N(num_wait) {int i_wait; for (i_wait = 0; i_wait < num_wait; i_wait++) wait(NULL);}
 #define SHM_NAME "/shm_eje3"
 #define MAX_MSG 2000
 
@@ -50,15 +49,20 @@ void manejador(int sig) {
 
 int main(int argc, char** argv) {   
     int N, M, i, j, t;
-    pid_t pid, padre;
+    pid_t pid, padre, *hijos;
     int shm;
-    struct sigaction s_u2;
-    char str[MAX_MSG];
-
-    shm_unlink(SHM_NAME);//Quitar
+    struct sigaction s_u1;
+    sigset_t wait_su1;
+    char str[MAX_MSG], txt[MAX_MSG];
 
     if (argc != 3 || (N = atoi(argv[1])) < 0 || (M = atoi(argv[2])) < 0)  {
         printf("%s <N> <M>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    hijos = (pid_t*)malloc(N*sizeof(pid_t));
+    if (hijos == NULL) {
+        perror("malloc");
         exit(EXIT_FAILURE);
     }
 
@@ -88,11 +92,14 @@ int main(int argc, char** argv) {
     shm_struct->processid = -1;
 
     /*Establecimiento del manejador*/
-    s_u2.sa_handler = manejador;
-    s_u2.sa_flags = 0;
-    sigemptyset(&(s_u2.sa_mask));
+    sigfillset(&wait_su1);
+    sigdelset(&wait_su1, SIGUSR1);
 
-    if (sigaction(SIGUSR2, &s_u2, NULL) < 0) {
+    s_u1.sa_handler = manejador;
+    s_u1.sa_flags = 0;
+    sigemptyset(&(s_u1.sa_mask));
+
+    if (sigaction(SIGUSR1, &s_u1, NULL) < 0) {
         perror("sigaction");
         shm_unlink(SHM_NAME);
         exit(EXIT_FAILURE);
@@ -116,12 +123,12 @@ int main(int argc, char** argv) {
                 shm_struct->processid = getpid();
                 shm_struct->logid++;
                 getMilClock(str);
-                sprintf(str, "Soy el proceso %d a las %s", getpid(), str);
-                if (strncpy(shm_struct->logtext, str, MAX_MSG) == NULL) {
+                sprintf(txt, "Soy el proceso %d a las %s", getpid(), str);
+                if (strncpy(shm_struct->logtext, txt, MAX_MSG) == NULL) {
                     exit(EXIT_FAILURE);
                 }
-
-                if (kill(padre, SIGUSR2) < 0) {
+                
+                if (kill(padre, SIGUSR1) < 0) {
                     perror("kill");
                     exit(EXIT_FAILURE);
                 }
@@ -129,11 +136,20 @@ int main(int argc, char** argv) {
 
             exit(EXIT_SUCCESS);
         }
+
+        else {
+            hijos[i] = pid;
+        }
     }
 
     /*Rutina padre*/
-    printf("1"); fflush(stdout);
-    WAIT_N(N);
+    for (i = 0; i < M*N; i++) {
+        sigsuspend(&wait_su1);
+    }
+
+    for (i = 0; i < N; i++) {
+        waitpid(hijos[i], NULL, 0);
+    }
     munmap(shm_struct, sizeof(ClientLog));
     shm_unlink(SHM_NAME);
     exit(EXIT_SUCCESS);

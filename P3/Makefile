@@ -3,11 +3,14 @@ CFLAGS = -Wall
 
 .PHONY: clean
 
-all: shm_concurrence shm_producer shm_consumer shm_producer_file shm_consumer_file
+all: shm_concurrence shm_concurrence_solved shm_producer shm_consumer shm_producer_file shm_consumer_file
 
 # ENLAZADO #
 shm_concurrence: shm_concurrence.o
 	$(CC) -o $@ $^ -lrt -lm
+
+shm_concurrence_solved: shm_concurrence_solved.o
+	$(CC) -o $@ $^ -lrt -lm -pthread
 
 shm_producer: shm_producer.o
 	$(CC) -o $@ $^ -pthread -lrt
@@ -23,6 +26,9 @@ shm_consumer_file: shm_consumer_file.o
 
 # COMPILADO #
 shm_concurrence.o: shm_concurrence.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+shm_concurrence_solved.o: shm_concurrence_solved.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 shm_producer.o: shm_producer.c shm_producer_consumer.h
