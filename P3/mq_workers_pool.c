@@ -16,6 +16,8 @@
 #define MAX_MSG 2048
 #define WAIT_N(num_wait) {int i_wait; for (i_wait = 0; i_wait < num_wait; i_wait++) wait(NULL);}
 
+static int stop = 0;
+
 void manejador_su2(int sig) {}
 
 void manejador_term(int sig) {}
@@ -48,7 +50,7 @@ int main(int argc, char** argv) {
     }
 
     /*Apertura de cola de mensajes*/
-    queue = mq_open(argv[2], O_CREAT | O_RDONLY | O_NONBLOCK, S_IRUSR | S_IWUSR, &attributes);
+    queue = mq_open(argv[2], O_CREAT | O_RDWR, S_IRUSR | S_IWUSR, &attributes);
     if (queue == (mqd_t)-1) {
         perror("mq_open");
         exit(EXIT_FAILURE);
@@ -74,16 +76,19 @@ int main(int argc, char** argv) {
 
     if (sigaction(SIGUSR2, &s_u2, NULL) < 0) {
         perror("sigaction");
+        mq_unlink(argv[2]);
         exit(EXIT_FAILURE);
     }
 
     if (sigaction(SIGTERM, &s_term, NULL) < 0) {
         perror("sigaction");
+        mq_unlink(argv[2]);
         exit(EXIT_FAILURE);
     }
 
     if (sigprocmask(SIG_BLOCK, &block_su2, NULL) < 0) {
         perror("sigprocmask");
+        mq_unlink(argv[2]);
         exit(EXIT_FAILURE);
     } 
 
@@ -93,6 +98,7 @@ int main(int argc, char** argv) {
         pid = fork();
         if (pid == -1) {
             perror("fork");
+            mq_unlink(argv[2]);
             exit(EXIT_FAILURE);
         }
 
@@ -102,22 +108,35 @@ int main(int argc, char** argv) {
             msgs = 0;
             do {
                 if (mq_receive(queue, buff, sizeof(buff), NULL) == -1) {
-                    break;
+                    perror("mq_receive");
+                    exit(EXIT_FAILURE);
                 }
+               
+                if (buff[0] != EOF) {
+                    msgs++;
 
-                msgs++;
-
-                for (j = 0; j < strlen(buff); j++) {
-                    if (buff[j] == clave) {
-                        count++;
+                    for (j = 0; j < strlen(buff); j++) {
+                        if (buff[j] == clave) {
+                            count++;
+                        }
                     }
                 }
             } while (buff[0] != EOF);
 
-            if (buff[0] == EOF) {
+            if (stop == 0) {
                 if (kill(padre, SIGUSR2) == -1) {
                     perror("kill");
                     exit(EXIT_FAILURE);
+                }
+
+                stop = 1;
+
+                buff[0] = EOF;
+                for (i = 1; i < N; i++) {
+                    if (mq_send(queue, buff, sizeof(buff), 1) == -1) {
+                        perror("mq_send");
+                        exit(EXIT_FAILURE);
+                    }
                 }
             } 
 
@@ -130,6 +149,7 @@ int main(int argc, char** argv) {
     }
 
     /*Finalizacion*/
+    mq_unlink(argv[2]);
     sigsuspend(&wait_su2);
     for (i = 0; i < N; i++) {
         if (kill(hijos[i], SIGTERM) == -1) {
@@ -139,6 +159,5 @@ int main(int argc, char** argv) {
     }
     WAIT_N(N);
     mq_close(queue);
-    mq_unlink(argv[2]);
     exit(EXIT_SUCCESS);
 }
