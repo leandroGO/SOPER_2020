@@ -1,3 +1,13 @@
+/**
+ * Fichero: mq_workers_pool_timed.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 14/04/2020
+ * Descripcion: Version de mq_workers_pool en la que los trabajadores
+ *  terminan tras un cierto tiempo desocupados.
+ */
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -16,10 +26,9 @@
 #define MAX_MSG 2048
 #define WAIT_N(num_wait) {int i_wait; for (i_wait = 0; i_wait < num_wait; i_wait++) wait(NULL);}
 
+/* Manejadores de sennales */
 void manejador_su2(int sig) {}
-
 void manejador_term(int sig) {}
-
 void manejador_alarm(int sig) {}
 
 int main(int argc, char** argv) {

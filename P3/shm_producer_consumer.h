@@ -11,14 +11,7 @@
 #ifndef SHM_PRODUCER_CONSUMER_H
 #define SHM_PRODUCER_CONSUMER_H
 
-#include <fcntl.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <semaphore.h>
 
 #define SHM_NAME "/shm_producer_consumer"

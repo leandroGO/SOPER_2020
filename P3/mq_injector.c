@@ -1,3 +1,13 @@
+/**
+ * Fichero: mq_injector.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 14/04/2020
+ * Descripcion: Programa que agrega a una cola de mensajes el contenido
+ *  de un fichero por bloques de cierta longitud.
+ */
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
