@@ -149,15 +149,16 @@ int main(int argc, char** argv) {
     }
 
     /*Finalizacion*/
-    mq_unlink(argv[2]);
     sigsuspend(&wait_su2);
     for (i = 0; i < N; i++) {
         if (kill(hijos[i], SIGTERM) == -1) {
             perror("kill");
+            mq_unlink(argv[2]);
             exit(EXIT_FAILURE);
         }
     }
     WAIT_N(N);
+    mq_unlink(argv[2]);
     mq_close(queue);
     exit(EXIT_SUCCESS);
 }
