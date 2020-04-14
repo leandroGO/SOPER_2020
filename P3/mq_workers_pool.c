@@ -16,8 +16,6 @@
 #define MAX_MSG 2048
 #define WAIT_N(num_wait) {int i_wait; for (i_wait = 0; i_wait < num_wait; i_wait++) wait(NULL);}
 
-static int stop = 0;
-
 void manejador_su2(int sig) {}
 
 void manejador_term(int sig) {}
@@ -121,17 +119,15 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
-            } while (buff[0] != EOF);
+            } while (buff[0] != EOF && buff[0] != '~');
 
-            if (stop == 0) {
+            if (buff[0] == EOF) {
                 if (kill(padre, SIGUSR2) == -1) {
                     perror("kill");
                     exit(EXIT_FAILURE);
                 }
 
-                stop = 1;
-
-                buff[0] = EOF;
+                buff[0] = '~';
                 for (i = 1; i < N; i++) {
                     if (mq_send(queue, buff, sizeof(buff), 1) == -1) {
                         perror("mq_send");
