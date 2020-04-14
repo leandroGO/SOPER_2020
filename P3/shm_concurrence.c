@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
     pid_t pid, padre, *hijos;
     int shm;
     struct sigaction s_u1;
-    sigset_t wait_su1;
+    sigset_t wait_su1, block_su1;
     char str[MAX_MSG], txt[MAX_MSG];
 
     if (argc != 3 || (N = atoi(argv[1])) < 0 || (M = atoi(argv[2])) < 0)  {
@@ -94,6 +94,8 @@ int main(int argc, char** argv) {
     /*Establecimiento del manejador*/
     sigfillset(&wait_su1);
     sigdelset(&wait_su1, SIGUSR1);
+    sigemptyset(&block_su1);
+    sigaddset(&block_su1, SIGUSR1);
 
     s_u1.sa_handler = manejador;
     s_u1.sa_flags = 0;
@@ -102,6 +104,12 @@ int main(int argc, char** argv) {
     if (sigaction(SIGUSR1, &s_u1, NULL) < 0) {
         perror("sigaction");
         shm_unlink(SHM_NAME);
+        exit(EXIT_FAILURE);
+    }
+
+    if (sigprocmask(SIG_BLOCK, &block_su1, NULL) < 0) {
+        perror("sigprocmask");
+        sem_destroy(&(shm_struct->mutex));
         exit(EXIT_FAILURE);
     }
 
