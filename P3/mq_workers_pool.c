@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
                     exit(EXIT_FAILURE);
                 }
                
-                if (buff[0] != EOF) {
+                if (buff[0] != EOF && buff[0] != '~') {
                     msgs++;
 
                     for (j = 0; j < strlen(buff); j++) {
