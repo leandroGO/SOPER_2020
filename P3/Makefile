@@ -3,7 +3,7 @@ CFLAGS = -Wall
 
 .PHONY: clean
 
-all: shm_concurrence shm_concurrence_solved shm_producer shm_consumer shm_producer_file shm_consumer_file
+all: shm_concurrence shm_concurrence_solved shm_producer shm_consumer shm_producer_file shm_consumer_file mq_injector mq_workers_pool
 
 # ENLAZADO #
 shm_concurrence: shm_concurrence.o
@@ -24,6 +24,12 @@ shm_producer_file: shm_producer_file.o
 shm_consumer_file: shm_consumer_file.o
 	$(CC) -o $@ $^ -pthread -lrt
 
+mq_injector: mq_injector.o
+	$(CC) -o $@ $^ -lrt
+
+mq_workers_pool: mq_workers_pool.o
+	$(CC) -o $@ $^ -lrt
+
 # COMPILADO #
 shm_concurrence.o: shm_concurrence.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -41,6 +47,12 @@ shm_producer_file.o: shm_producer_file.c shm_producer_consumer.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 shm_consumer_file.o: shm_consumer_file.c shm_producer_consumer.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+mq_injector.o: mq_injector.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+mq_workers_pool.o: mq_workers_pool.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # MISC #
