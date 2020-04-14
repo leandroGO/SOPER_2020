@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
 
     if (sigprocmask(SIG_BLOCK, &block_su1, NULL) < 0) {
         perror("sigprocmask");
-        sem_destroy(&(shm_struct->mutex));
+        shm_unlink(SHM_NAME);
         exit(EXIT_FAILURE);
     }
 
