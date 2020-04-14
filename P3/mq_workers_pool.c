@@ -34,8 +34,8 @@ int main(int argc, char** argv) {
         .mq_msgsize = sizeof(buff)
     };
 
-    if (argc != 4 || (N = atoi(argv[1])) <= 0 || N < 10) {
-        printf("%s <N> <nombre_cola> <caracter>", argv[0]);
+    if (argc != 4 || (N = atoi(argv[1])) <= 0 || N > 10) {
+        printf("%s <N> <nombre_cola> <caracter>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     }
 
     /*Apertura de cola de mensajes*/
-    queue = mq_open(argv[2], O_CREAT | O_RDONLY, S_IRUSR | S_IWUSR, &attributes);
+    queue = mq_open(argv[2], O_CREAT | O_RDONLY | O_NONBLOCK, S_IRUSR | S_IWUSR, &attributes);
     if (queue == (mqd_t)-1) {
         perror("mq_open");
         exit(EXIT_FAILURE);
@@ -62,6 +62,7 @@ int main(int argc, char** argv) {
 
     sigemptyset(&block_su2);
     sigaddset(&block_su2, SIGUSR2);
+    sigaddset(&block_su2, SIGTERM);
 
     s_u2.sa_handler = manejador_su2;
     s_u2.sa_flags = 0;
@@ -98,28 +99,30 @@ int main(int argc, char** argv) {
         else if (pid == 0) {
             /*Rutina trabajador*/
             count = 0;
-            buff[0] = 0;
-            for (msgs = 0; buff[0] != EOF; msgs++) {
-                if (msgs != 0) {
-                    for (j = 0; j < strlen(buff); j++) {
-                        if (buff[j] == clave) {
-                            count++;
-                        }
+            msgs = 0;
+            do {
+                if (mq_receive(queue, buff, sizeof(buff), NULL) == -1) {
+                    break;
+                }
+
+                msgs++;
+
+                for (j = 0; j < strlen(buff); j++) {
+                    if (buff[j] == clave) {
+                        count++;
                     }
                 }
-                if (mq_receive(queue, buff, sizeof(buff), NULL) == -1) {
-                    perror("mq_receive");
+            } while (buff[0] != EOF);
+
+            if (buff[0] == EOF) {
+                if (kill(padre, SIGUSR2) == -1) {
+                    perror("kill");
                     exit(EXIT_FAILURE);
                 }
-            }
-
-            if (kill(padre, SIGUSR2) == -1) {
-                perror("kill");
-                exit(EXIT_FAILURE);
-            }
+            } 
 
             sigsuspend(&wait_term);
-
+            printf("Mensajes: %d; Coincidencias: %d\n", msgs, count);
             exit(EXIT_SUCCESS);
         }
 
@@ -134,7 +137,7 @@ int main(int argc, char** argv) {
             exit(EXIT_FAILURE);
         }
     }
-
+    WAIT_N(N);
     mq_close(queue);
     mq_unlink(argv[2]);
     exit(EXIT_SUCCESS);

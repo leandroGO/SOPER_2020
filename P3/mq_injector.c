@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     };
 
     if (argc != 3) {
-        printf("%s <fichero_entrada> <nombre_cola>", argv[0]);
+        printf("%s <fichero_entrada> <nombre_cola>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
