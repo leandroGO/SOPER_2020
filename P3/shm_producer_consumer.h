@@ -1,3 +1,13 @@
+/**
+ * Fichero: shm_producer_consumer.h
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 10/04/2020
+ * Descripcion: Fichero con informacion comun a shm_producer y
+ *  shm_consumer (y sus versiones *_file).
+ */
 #ifndef SHM_PRODUCER_CONSUMER_H
 #define SHM_PRODUCER_CONSUMER_H
 
@@ -18,34 +28,19 @@
 #define Q_SIZE 30
 #define SUP 10   //trabajamos con los numeros de 0 a SUP-1
 
+/* Cola de enteros */
 typedef struct _Queue {
     int data[Q_SIZE];
     int front;
     int rear;
 } Queue;
 
+/* Informacion compartida */
 typedef struct _Info {
     sem_t mutex;
     sem_t empty;
     sem_t fill;
     Queue queue;
 } Info;
-/*
-sem_t* open_semaphore(char *name) {
-    sem_t *sem;
-
-    if ((sem = sem_open(name, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
-        if (errno == EEXIST) {
-            if ((sem = sem_open(name, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
-                exit(EXIT_FAILURE);
-            }
-            sem_unlink(name);   //Si un proceso lo crea, el siguiente le hace unlink
-        } else {
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    return sem;
-}*/
 
 #endif

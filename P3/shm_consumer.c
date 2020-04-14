@@ -1,3 +1,13 @@
+/**
+ * Fichero: shm_consumer.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 10/04/2020
+ * Descripcion: Programa que implementa el consumidor del problema
+ *  de productor-consumidor.
+ */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

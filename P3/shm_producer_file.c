@@ -1,3 +1,12 @@
+/**
+ * Fichero: shm_producer_file.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 10/04/2020
+ * Descripcion: Version de shm_producer con escritura en fichero.
+ */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

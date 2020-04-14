@@ -1,3 +1,12 @@
+/**
+ * Fichero: shm_concurrence.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 13/04/2020
+ * Descripcion: Programa que genera procesos segun lo indicado.
+ */
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -41,6 +50,12 @@ static void getMilClock(char *buf) {
 	sprintf(buf, "%s.%03d", aux, millisec);
 }
 
+/**
+ * Nombre: manejador
+ * 
+ * Descripcion: La rutina de atencion a SIGUSR1.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador(int sig) {
     if (sig == SIGUSR1) {
 		printf ("Log %ld: Pid %d: %s\n", shm_struct->logid, shm_struct->processid, shm_struct->logtext);

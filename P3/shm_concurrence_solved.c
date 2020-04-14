@@ -1,3 +1,13 @@
+/**
+ * Fichero: shm_concurrence_solved.c
+ *
+ * Autores: Leandro Garcia (leandro.garcia@estudiante.uam.es)
+ *          Fabian Gutierrez (fabian.gutierrez@estudiante.uam.es)
+ * Grupo: 2201
+ * Fecha: 13/04/2020
+ * Descripcion: Version mejorada de shm_concurrence. Gestiona la
+ *  concurrencia mediante el uso de semaforos.
+ */
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -21,7 +31,7 @@ typedef struct {
 	pid_t processid;       /* Logger process PID */
 	long logid;            /* Id of current log line */
 	char logtext[MAX_MSG]; /* Log text */
-    sem_t mutex;
+    sem_t mutex;           /* mutual exclusion semaphore */
 } ClientLog;
 
 static ClientLog *shm_struct;
@@ -43,6 +53,12 @@ static void getMilClock(char *buf) {
 	sprintf(buf, "%s.%03d", aux, millisec);
 }
 
+/**
+ * Nombre: manejador
+ * 
+ * Descripcion: La rutina de atencion a SIGUSR1.
+ * Parametro: sig identificador de la sennal.
+ */
 void manejador(int sig) {
     if (sig == SIGUSR1) {
 		printf ("Log %ld: Pid %d: %s\n", shm_struct->logid, shm_struct->processid, shm_struct->logtext);
