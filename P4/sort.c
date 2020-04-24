@@ -17,6 +17,10 @@
 #include "sort.h"
 #include "utils.h"
 
+/* Private functions */
+Status clean_up_multiprocess(Sort *sort, Status ret_val); /*Frees resources used in sort_multiprocess*/
+
+/* Interface implementation */
 Status bubble_sort(int *vector, int n_elements, int delay) {
     int i, j;
     int temp;
@@ -247,6 +251,8 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     int i, j;
     int fd;
     Sort *sort;
+    pid_t child_id;
+    int child_exit_status;
 
     /* POSIX shared memory object is created and mapped */
     fd = shm_open(SHM_NAME, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
@@ -271,7 +277,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     /* The data is loaded and the structure initialized. */
     if (init_sort(file_name, sort, n_levels, n_processes, delay) == ERROR) {
         fprintf(stderr, "sort_single_process - init_sort\n");
-        return ERROR;
+        return clean_up_multiprocess(sort, ERROR);
     }
 
     plot_vector(sort->data, sort->n_elements);
@@ -279,7 +285,19 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     /* For each level, and each part, the corresponding task is solved. */
     for (i = 0; i < sort->n_levels; i++) {
         for (j = 0; j < get_number_parts(i, sort->n_levels); j++) {
-            solve_task(sort, i, j);
+            child_id = fork();
+            if (child_id < 0) {
+                perror("fork");
+                return clean_up_multiprocess(sort, ERROR);
+            }
+            if (!child_id) {
+                exit(solve_task(sort, i, j) == OK ? EXIT_SUCCESS : EXIT_FAILURE);
+            }
+            wait(&child_exit_status);
+            if (WIFEXITED(child_exit_status) && WEXITSTATUS(child_exit_status) == EXIT_FAILURE) {
+                fprintf(stderr, "Worker failed. PID: %d\n", child_id);
+                return clean_up_multiprocess(sort, ERROR);
+            }
             plot_vector(sort->data, sort->n_elements);
             printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", \
                 "END");
@@ -292,4 +310,12 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     printf("\nAlgorithm completed\n");
 
     return OK;
+}
+
+/* Private functions implementation */
+Status clean_up_multiprocess(Sort *sort, Status ret_val) {
+    if (sort != NULL) {
+        munmap(sort, sizeof(*sort));
+    }
+    return ret_val;
 }
