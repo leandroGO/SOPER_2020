@@ -309,7 +309,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     plot_vector(sort->data, sort->n_elements);
     printf("\nAlgorithm completed\n");
 
-    return OK;
+    return clean_up_multiprocess(sort, OK);
 }
 
 /* Private functions implementation */
