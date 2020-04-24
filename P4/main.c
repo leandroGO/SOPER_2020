@@ -23,5 +23,5 @@ int main(int argc, char *argv[]) {
         delay = 1e8;
     }
 
-    return sort_single_process(argv[1], n_levels, n_processes, delay);
+    return sort_multiprocess(argv[1], n_levels, n_processes, delay);
 }

@@ -248,11 +248,12 @@ Status sort_single_process(char *file_name, int n_levels, int n_processes, int d
 }
 
 Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int delay) {
-    int i, j;
+    int i, j, n_parts;
     int fd;
     Sort *sort;
-    pid_t child_id;
+    pid_t children_id[MAX_PARTS] = {0};
     int child_exit_status;
+    Bool worker_failed = FALSE;
 
     /* POSIX shared memory object is created and mapped */
     fd = shm_open(SHM_NAME, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
@@ -284,26 +285,30 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     printf("\nStarting algorithm with %d levels and %d processes...\n", sort->n_levels, sort->n_processes);
     /* For each level, and each part, the corresponding task is solved. */
     for (i = 0; i < sort->n_levels; i++) {
-        for (j = 0; j < get_number_parts(i, sort->n_levels); j++) {
-            child_id = fork();
-            if (child_id < 0) {
+        n_parts = get_number_parts(i, sort->n_levels);
+        for (j = 0; j < n_parts; j++) {
+            children_id[j] = fork();
+            if (children_id[j] < 0) {
                 perror("fork");
                 return clean_up_multiprocess(sort, ERROR);
             }
-            if (!child_id) {
+            if (!children_id[j]) {
                 exit(solve_task(sort, i, j) == OK ? EXIT_SUCCESS : EXIT_FAILURE);
             }
+        }
+        for (j = 0; j < n_parts; j++) {
             wait(&child_exit_status);
             if (WIFEXITED(child_exit_status) && WEXITSTATUS(child_exit_status) == EXIT_FAILURE) {
-                fprintf(stderr, "Worker failed. PID: %d\n", child_id);
-                return clean_up_multiprocess(sort, ERROR);
+                fprintf(stderr, "Worker failed\n");
+                worker_failed = TRUE;   /*Waits for the other children*/
             }
-            plot_vector(sort->data, sort->n_elements);
-            printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", \
-                "END");
-            printf("%10d%10d%10d%10d%10d\n", getpid(), i, j, \
-                sort->tasks[i][j].ini, sort->tasks[i][j].end);
         }
+        if (worker_failed) {
+            return clean_up_multiprocess(sort, ERROR);
+        }
+        plot_vector(sort->data, sort->n_elements);
+        printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", "END");
+        printf("%10d%10d%10d%10d%10d\n", getpid(), i, -1, sort->tasks[i][j].ini, sort->tasks[i][j].end);
     }
 
     plot_vector(sort->data, sort->n_elements);
