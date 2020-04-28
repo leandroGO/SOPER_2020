@@ -18,7 +18,7 @@
 #include "utils.h"
 
 /* Private functions */
-void worker(Sort *sort, int level, int part);   /*Workers' code*/
+void worker(Sort *sort, mqd_t mq);   /*Workers' code*/
 Status clean_up_multiprocess(Sort *sort, mqd_t mq, Status ret_val); /*Frees resources used in sort_multiprocess*/
 
 /* Interface implementation */
@@ -348,7 +348,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 /* Private functions implementation */
 void worker(Sort *sort, mqd_t mq) {
     Message msg;
-    int status = EXIT_FAILURE
+    int status = EXIT_FAILURE;
 
     if (mq_receive(queue , (char *)&msg, sizeof(msg), NULL) == -1) {
         perror(mq_receive);
