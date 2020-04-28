@@ -18,7 +18,8 @@
 #include "utils.h"
 
 /* Private functions */
-Status clean_up_multiprocess(Sort *sort, Status ret_val); /*Frees resources used in sort_multiprocess*/
+void worker(Sort *sort, int level, int part);   /*Workers' code*/
+Status clean_up_multiprocess(Sort *sort, mqd_t mq, Status ret_val); /*Frees resources used in sort_multiprocess*/
 
 /* Interface implementation */
 Status bubble_sort(int *vector, int n_elements, int delay) {
@@ -251,6 +252,16 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     int i, j, n_parts;
     int fd;
     Sort *sort;
+
+    mqd_t mq;
+    struct mq_attr attributes = {
+        .mq_flags = 0,
+        .mq_maxmsg = 10,
+        .mq_curmsgs = 0,
+        .mq_msgsize = sizeof(2*sizeof(int)) /*level and part determines a task*/
+    };
+    Message msg;
+
     pid_t children_id[MAX_PARTS] = {0};
     int child_exit_status;
     Bool worker_failed = FALSE;
@@ -275,10 +286,18 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         return ERROR;
     }
 
+    /* POSIX message queue is created */
+    mq = mq_open(MQ_NAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR, &attributes)
+    if (mq == (mqd_t)-1) {
+        perror("mq_open");
+        clean_up_multiprocess(sort, mq, ERROR);
+    }
+    mq_unlink(MQ_NAME); /*MQ_NAME will no longer be used*/
+
     /* The data is loaded and the structure initialized. */
     if (init_sort(file_name, sort, n_levels, n_processes, delay) == ERROR) {
         fprintf(stderr, "sort_single_process - init_sort\n");
-        return clean_up_multiprocess(sort, ERROR);
+        return clean_up_multiprocess(sort, mq, ERROR);
     }
 
     plot_vector(sort->data, sort->n_elements);
@@ -290,12 +309,21 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             children_id[j] = fork();
             if (children_id[j] < 0) {
                 perror("fork");
-                return clean_up_multiprocess(sort, ERROR);
+                return clean_up_multiprocess(sort, mq, ERROR);
             }
             if (!children_id[j]) {
-                exit(solve_task(sort, i, j) == OK ? EXIT_SUCCESS : EXIT_FAILURE);
+                worker(sort, mq);
             }
         }
+        msg.level = i;
+        for (j = 0; j < n_parts; j++) {
+            msg.part = j;
+            if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1) {
+                perror("mq_send");
+                return clean_up_multiprocess(sort, mq, ERROR);  /*Fatal error*/
+            }
+        }
+
         for (j = 0; j < n_parts; j++) {
             wait(&child_exit_status);
             if (WIFEXITED(child_exit_status) && WEXITSTATUS(child_exit_status) == EXIT_FAILURE) {
@@ -304,7 +332,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             }
         }
         if (worker_failed) {
-            return clean_up_multiprocess(sort, ERROR);
+            return clean_up_multiprocess(sort, mq, ERROR);
         }
         plot_vector(sort->data, sort->n_elements);
         printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", "END");
@@ -318,9 +346,24 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 }
 
 /* Private functions implementation */
-Status clean_up_multiprocess(Sort *sort, Status ret_val) {
+void worker(Sort *sort, mqd_t mq) {
+    Message msg;
+    int status = EXIT_FAILURE
+
+    if (mq_receive(queue , (char *)&msg, sizeof(msg), NULL) == -1) {
+        perror(mq_receive);
+    } else if (solve_task(sort, msg.level, msg.part) == OK) {
+        status = EXIT_SUCCESS;
+    }
+    clean_up_multiprocess(sort, mq, OK);
+    exit(status);
+}
+Status clean_up_multiprocess(Sort *sort, mqd_t mq, Status ret_val) {
     if (sort != NULL) {
         munmap(sort, sizeof(*sort));
+    }
+    if (mq != (mqd_t)-1) {
+        mq_close(mq);
     }
     return ret_val;
 }

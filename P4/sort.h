@@ -16,6 +16,7 @@
 #define NO_MID -1
 
 #define SHM_NAME "/foo"
+#define MQ_NAME "/foo"
 
 /* Type definitions. */
 
@@ -45,6 +46,12 @@ typedef struct{
     int n_processes;
     pid_t ppid;
 } Sort;
+
+/* Message */
+typedef struct{
+    int level;
+    int part;
+} Message;
 
 /* Prototypes. */
 
