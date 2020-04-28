@@ -287,7 +287,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     }
 
     /* POSIX message queue is created */
-    mq = mq_open(MQ_NAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR, &attributes)
+    mq = mq_open(MQ_NAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR, &attributes);
     if (mq == (mqd_t)-1) {
         perror("mq_open");
         clean_up_multiprocess(sort, mq, ERROR);
@@ -342,7 +342,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     plot_vector(sort->data, sort->n_elements);
     printf("\nAlgorithm completed\n");
 
-    return clean_up_multiprocess(sort, OK);
+    return clean_up_multiprocess(sort, mq, OK);
 }
 
 /* Private functions implementation */
@@ -350,8 +350,8 @@ void worker(Sort *sort, mqd_t mq) {
     Message msg;
     int status = EXIT_FAILURE;
 
-    if (mq_receive(queue , (char *)&msg, sizeof(msg), NULL) == -1) {
-        perror(mq_receive);
+    if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1) {
+        perror("mq_receive");
     } else if (solve_task(sort, msg.level, msg.part) == OK) {
         status = EXIT_SUCCESS;
     }
