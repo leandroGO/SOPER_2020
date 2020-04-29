@@ -3,7 +3,7 @@ INC=./
 OBJ=./
 
 CC=gcc
-CFLAGS=-Wall -pedantic -ansi -g -I $(INC)
+CFLAGS=-Wall -ansi -g -I $(INC)
 LIBRARIES=-lrt -pthread
 
 ARG_FILE=./Data/DataSmall.dat
