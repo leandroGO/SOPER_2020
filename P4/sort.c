@@ -285,6 +285,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     sigaddset(&block_su1, SIGUSR1);
     sigfillset(&wait_su1);
     sigdelset(&wait_su1, SIGUSR1);
+    sigdelset(&wait_su1, SIGINT);
 
     /* POSIX shared memory object is created and mapped */
     fd = shm_open(SHM_NAME, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
@@ -375,7 +376,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             sem_wait(mutex);
             for (j = 0; j < n_parts; j++) {
                 level_completed = TRUE;
-                if (!check_task_ready(sort, i, j)) {
+                if (sort->tasks[i][j].completed != COMPLETED) {
                     level_completed = FALSE;
                     break;
                 }
@@ -413,15 +414,17 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 }
 
 /* Private functions implementation */
+static Bool term = FALSE;
+
 void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
     Message msg;
     int status = EXIT_SUCCESS;
-    static Bool term = FALSE;
 
     while(!term) {
         if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1) {
-            perror("mq_receive");
-            term = TRUE;
+            if (errno != 4) {
+                perror("mq_receive");
+            }
         } else if (solve_task(sort, msg.level, msg.part) == OK) {
             status = EXIT_SUCCESS;
         }
@@ -433,7 +436,8 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
 
             if (kill(ppid, SIGUSR1) == -1) {
                 perror("kill");
-                return clean_up_multiprocess(sort, mq, mutex, ERROR);
+                term = TRUE;
+                status = EXIT_FAILURE;
             }
         }
     }
@@ -442,7 +446,10 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
     exit(status);
 }
 
-void manejador_sigterm(int sig) {}
+void manejador_sigterm(int sig) {
+    term = TRUE;
+}
+
 void manejador_sigusr1(int sig) {}
 
 Status clean_up_multiprocess(Sort *sort, mqd_t mq, sem_t *mutex, Status ret_val) {
