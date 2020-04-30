@@ -21,7 +21,14 @@
 void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid);   /*Workers' code*/
 void manejador_sigterm(int sig);
 void manejador_sigusr1(int sig);
+void manejador_sigint(int sig);
 Status clean_up_multiprocess(Sort *sort, mqd_t mq, sem_t *mutex, Status ret_val); /*Frees resources used in sort_multiprocess*/
+
+/*Global variables*/
+static Sort *sort;
+static mqd_t mq;
+static sem_t *mutex;
+static pid_t *children_id;
 
 /* Interface implementation */
 Status bubble_sort(int *vector, int n_elements, int delay) {
@@ -266,7 +273,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     int child_exit_status;
     Bool worker_failed = FALSE, level_completed;
 
-    struct sigaction s_term, s_u1, s_int;
+    struct sigaction s_term, s_u1, s_int, ign_int;
     sigset_t wait_su1, block_su1;
 
     /*Initializing handlers and masks*/
@@ -281,6 +288,10 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     s_int.sa_handler = manejador_sigint;
     s_int.sa_flags = 0;
     sigemptyset(&(s_int.sa_mask));
+
+    ign_int.sa_handler = SIG_IGN;
+    ign_int.sa_flags = 0;
+    sigemptyset(&(ign_int.sa_mask));
 
     sigemptyset(&block_su1);
     sigaddset(&block_su1, SIGUSR1);
@@ -363,7 +374,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
         if (!children_id[j]) {
-            if (sigaction(SIGINT, SIG_IGN, NULL) == -1) {
+            if (sigaction(SIGINT, &ign_int, NULL) == -1) {
                 perror("sigaction");
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
             }
@@ -432,12 +443,6 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 }
 
 /* Private functions implementation */
-static Sort *sort;
-static mqd_t mq;
-static sem_t *mutex;
-
-static pid_t *children_id;
-
 void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
     Message msg;
     Bool term = FALSE;
