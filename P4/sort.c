@@ -253,9 +253,7 @@ Status sort_single_process(char *file_name, int n_levels, int n_processes, int d
 Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int delay) {
     int i, j, n_parts;
     int fd;
-    Sort *sort;
 
-    mqd_t mq;
     struct mq_attr attributes = {
         .mq_flags = 0,
         .mq_maxmsg = 10,
@@ -264,12 +262,11 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     };
     Message msg;
 
-    pid_t children_id[MAX_PARTS] = {0}, ppid = getpid();
+    pid_t ppid = getpid();
     int child_exit_status;
     Bool worker_failed = FALSE, level_completed;
 
-    struct sigaction s_term, s_u1;
-    sem_t *mutex;
+    struct sigaction s_term, s_u1, s_int;
     sigset_t wait_su1, block_su1;
 
     /*Initializing handlers and masks*/
@@ -281,11 +278,20 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     s_u1.sa_flags = 0;
     sigemptyset(&(s_u1.sa_mask));
 
+    s_int.sa_handler = manejador_sigint;
+    s_int.sa_flags = 0;
+    sigemptyset(&(s_int.sa_mask));
+
     sigemptyset(&block_su1);
     sigaddset(&block_su1, SIGUSR1);
     sigfillset(&wait_su1);
     sigdelset(&wait_su1, SIGUSR1);
     sigdelset(&wait_su1, SIGINT);
+
+    if (sigaction(SIGINT, &s_int, NULL) == -1) {
+        perror("sigaction");
+        return ERROR;
+    }
 
     /* POSIX shared memory object is created and mapped */
     fd = shm_open(SHM_NAME, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
@@ -331,6 +337,13 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     plot_vector(sort->data, sort->n_elements);
     printf("\nStarting algorithm with %d levels and %d processes...\n", sort->n_levels, sort->n_processes);
 
+    sort->n_processes = sort->n_processes;
+    children_id = (pid_t*)malloc(sort->n_processes*sizeof(pid_t));
+    if (children_id == NULL) {
+        perror("malloc");
+        return clean_up_multiprocess(sort, mq, mutex, ERROR);
+    }
+
     /*Applying SIGUSR1 mask and handler*/
     if (sigprocmask(SIG_BLOCK, &block_su1, NULL) == -1) {
         perror("sigprocmask");
@@ -350,6 +363,11 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
         if (!children_id[j]) {
+            if (sigaction(SIGINT, SIG_IGN, NULL) == -1) {
+                perror("sigaction");
+                return clean_up_multiprocess(sort, mq, mutex, ERROR);
+            }
+
             if (sigaction(SIGTERM, &s_term, NULL) == -1) {
                 perror("sigaction");
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
@@ -414,43 +432,64 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 }
 
 /* Private functions implementation */
-static Bool term = FALSE;
+static Sort *sort;
+static mqd_t mq;
+static sem_t *mutex;
+
+static pid_t *children_id;
 
 void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
     Message msg;
-    int status = EXIT_SUCCESS;
+    Bool term = FALSE;
 
     while(!term) {
         if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1) {
             if (errno != 4) {
                 perror("mq_receive");
             }
-        } else if (solve_task(sort, msg.level, msg.part) == OK) {
-            status = EXIT_SUCCESS;
+        } else {
+            if (solve_task(sort, msg.level, msg.part) == ERROR) {
+                term = TRUE;
+            }
         }
 
-        if (!term) {
-            sem_wait(mutex);
-            sort->tasks[msg.level][msg.part].completed = COMPLETED;
-            sem_post(mutex);
+        sem_wait(mutex);
+        sort->tasks[msg.level][msg.part].completed = COMPLETED;
+        sem_post(mutex);
 
-            if (kill(ppid, SIGUSR1) == -1) {
-                perror("kill");
-                term = TRUE;
-                status = EXIT_FAILURE;
-            }
+        if (kill(ppid, SIGUSR1) == -1) {
+            perror("kill");
+            term = TRUE;
         }
     }
 
-    clean_up_multiprocess(sort, mq, mutex, OK);
-    exit(status);
+    clean_up_multiprocess(sort, mq, mutex, ERROR);
+    exit(EXIT_FAILURE);
 }
 
 void manejador_sigterm(int sig) {
-    term = TRUE;
+    clean_up_multiprocess(sort, mq, mutex, OK);
+    exit(EXIT_SUCCESS);
 }
 
 void manejador_sigusr1(int sig) {}
+
+void manejador_sigint(int sig) {
+    int i;
+
+    for (i = 0; i < sort->n_processes; i++) {
+        if (kill(children_id[i], SIGTERM) == -1) {
+            perror("kill");
+        }
+    }
+
+    for (i = 0; i < sort->n_processes; i++) {
+        wait(NULL);
+    }
+
+    clean_up_multiprocess(sort, mq, mutex, ERROR);
+    exit(EXIT_FAILURE);
+}
 
 Status clean_up_multiprocess(Sort *sort, mqd_t mq, sem_t *mutex, Status ret_val) {
     if (sort != NULL) {
