@@ -18,17 +18,25 @@
 #include "utils.h"
 
 /* Private functions */
+void illustrator(Sort *sort, int **pipelines, pid_t ppid);   /*Illustrator's code*/
 void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid);   /*Workers' code*/
 void manejador_sigterm(int sig);
 void manejador_sigusr1(int sig);
 void manejador_sigint(int sig);
+void manejador_sigalrm(int sig);
+void close_pipelines(int N, int **pipelines);   /*Closes N pipelines*/
 Status clean_up_multiprocess(Sort *sort, mqd_t mq, sem_t *mutex, Status ret_val); /*Frees resources used in sort_multiprocess*/
 
-/*Global variables*/
+/* Global variables */
 static Sort *sort;
 static mqd_t mq;
 static sem_t *mutex;
 static pid_t *children_id;
+static int pipelines[2*MAX_PARTS][2];
+static int work_level = -1;  /*Coordinates for "this" worker*/
+static int work_part = -1;
+static int read_fd; /*Pipelines for "this" worker*/
+static int write_fd;
 
 /* Interface implementation */
 Status bubble_sort(int *vector, int n_elements, int delay) {
@@ -259,7 +267,7 @@ Status sort_single_process(char *file_name, int n_levels, int n_processes, int d
 
 Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int delay) {
     int i, j, n_parts;
-    int fd;
+    int fd, pipes[MAX_PARTS][2];
 
     struct mq_attr attributes = {
         .mq_flags = 0,
@@ -273,8 +281,8 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     int child_exit_status;
     Bool worker_failed = FALSE, level_completed;
 
-    struct sigaction s_term, s_u1, s_int, ign_int;
-    sigset_t wait_su1, block_su1;
+    struct sigaction s_term, s_u1, s_int, ign_int, s_alrm;
+    sigset_t wait_su1, block_su1, wait_ter;
 
     /* Initializing handlers and masks */
     s_term.sa_handler = manejador_sigterm;
@@ -293,11 +301,17 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     ign_int.sa_flags = 0;
     sigemptyset(&(ign_int.sa_mask));
 
+    s_alrm.sa_handler = manejador_sigalrm;
+    s_alrm.sa_flags = 0;
+    sigemptyset(&(s_alrm.sa_mask));
+
     sigemptyset(&block_su1);
     sigaddset(&block_su1, SIGUSR1);
     sigfillset(&wait_su1);
     sigdelset(&wait_su1, SIGUSR1);
     sigdelset(&wait_su1, SIGINT);
+    sigfillset(&wait_ter);
+    sigdelset(&wait_ter, SIGTERM);
 
     if (sigaction(SIGINT, &s_int, NULL) == -1) {
         perror("sigaction");
@@ -348,7 +362,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     plot_vector(sort->data, sort->n_elements);
     printf("\nStarting algorithm with %d levels and %d processes...\n", sort->n_levels, sort->n_processes);
 
-    children_id = (pid_t*)malloc(sort->n_processes*sizeof(pid_t));
+    children_id = (pid_t*)malloc((sort->n_processes + 1)*sizeof(pid_t));
     if (children_id == NULL) {
         perror("malloc");
         return clean_up_multiprocess(sort, mq, mutex, ERROR);
@@ -364,9 +378,42 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         perror("sigaction");
         return clean_up_multiprocess(sort, mq, mutex, ERROR);
     }
+
+    /* Creating pipelines */
+    for (i = 0; i < 2*sort->n_processes; i++) {
+        if (pipe(pipelines[i]) == -1) {
+            perror("pipe (%d)", i);
+            close_pipelines(i - 1, pipelines);
+            return clean_up_multiprocess(sort, mq, mutex, ERROR);
+        }
+    }
+
+    /* Initializing illustrator */
+    children_id[0] = fork();
+    if (children_id[0] < 0) {
+            perror("fork");
+            close_pipelines(2*sort->n_processes, pipelines);
+            return clean_up_multiprocess(sort, mq, mutex, ERROR);
+        }
+    if (!children_id[0]) {
+        if (sigaction(SIGINT, &ign_int, NULL) == -1) {
+            perror("sigaction (SIGINT)");
+            close_pipelines(2*sort->n_processes, pipelines);
+            return clean_up_multiprocess(sort, mq, mutex, ERROR);
+        }
+
+        if (sigaction(SIGTERM, &s_term, NULL) == -1) {
+            perror("sigaction (SIGTERM)");
+            close_pipelines(2*sort->n_processes, pipelines);
+            return clean_up_multiprocess(sort, mq, mutex, ERROR);
+        }
+
+        illustrator(sort, pipelines, ppid);
+        sigsuspend(&wait_ter);
+    }
     
     /* Initializing the workers */
-    for (j = 0; j < sort->n_processes; j++) {
+    for (j = 1; j <= sort->n_processes; j++) {
         children_id[j] = fork();
         if (children_id[j] < 0) {
             perror("fork");
@@ -374,14 +421,25 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         }
         if (!children_id[j]) {
             if (sigaction(SIGINT, &ign_int, NULL) == -1) {
-                perror("sigaction");
+                perror("sigaction (SIGINT)");
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
             }
 
             if (sigaction(SIGTERM, &s_term, NULL) == -1) {
-                perror("sigaction");
+                perror("sigaction (SIGTERM)");
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
             }
+
+            if (sigaction(SIGALRM, &s_alrm, NULL) == -1) {
+                perror("sigaction (SIGALRM)");
+                return clean_up_multiprocess(sort, mq, mutex, ERROR);
+            }
+
+            close(pipelines[2*j][1]);   /*workera write on the odd and read from the even*/
+            close(pipelines[2*j+1][0]);
+            read_fd = pipelines[2*j][0];
+            write_fd = pipelines[2*j+1][1];
+
             worker(sort, mq, mutex, ppid);
         }
     }
@@ -425,7 +483,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         }
     }
     for (j = 0; j < sort->n_processes; j++) {
-        waitpid(children_id[j], &child_exit_status, 0);
+        wait(&child_exit_status);
         if (WIFEXITED(child_exit_status) && WEXITSTATUS(child_exit_status) == EXIT_FAILURE) {
             fprintf(stderr, "Worker failed\n");
             worker_failed = TRUE;
@@ -442,19 +500,68 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 }
 
 /* Private functions implementation */
+void illustrator(Sort *sort, int **pipelines, pid_t ppid) {
+    int i;
+    char info[MAX_PARTS][MAX_STRING];
+    ssize_t nbytes = 0;
+    /* Closing unused pipelines ends */
+    for (i = 0; i < sort->n_processes; i++) {
+        close(pipelines[2*i][0]);   /*illustrator writes on the even and reads from the odd*/
+        close(pipelines[2*i+1][1]);
+    }
+
+    while (true) {
+        for (i = 0; i < sort->n_processes; i++) {
+            do {
+                nbytes = read(pipelines[2*i+1][0], info[i], sizeof(info[i]));
+                if (nbytes == -1) {
+                    perror("read (illustrator)");
+                    kill(ppid, SIGINT); /*Aborts the whole system*/
+                    return;
+                }
+            } while (nbytes);
+        }
+
+        plot_vector(sort->data, sort->n_elements);  /*Since workers (writers) are blocked, a semaphore won't be needed*/
+        printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", "END");
+        for (i = 0; i < sort->n_processes; i++) {
+            printf(info[i]);
+        }
+
+        for (i = 0; i < sort->n_processes; i++) {
+            if (write(pipelines[2*i][1], "foo", strlen("foo") + 1) == -1) {
+                perror("read (illustrator)");
+                kill(ppid, SIGINT); /*Aborts the whole system*/
+                return;
+            }
+        }
+    }
+}
+
 void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
     Message msg;
-    Bool term = FALSE;
+    Bool term = FALSE, alm = TRUE;
 
-    while(!term) {
-        if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1) {
-            if (errno != 4) {
-                perror("mq_receive");
+    while (TRUE) {
+        alarm(1);
+        while (alm) {
+            alm = FALSE;
+            if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1) {
+                if (errno != EINTR) {
+                    perror("mq_receive");
+                    term = TRUE;
+                    break;
+                }
+                alm = TRUE;
             }
-        } else {
-            if (solve_task(sort, msg.level, msg.part) == ERROR) {
-                term = TRUE;
-            }
+        }
+        if (term) {
+            break;
+        }
+        work_level = msg.level;
+        work_part = msg.part;
+        if (solve_task(sort, msg.level, msg.part) == ERROR) {
+            break;
         }
 
         sem_wait(mutex);
@@ -463,7 +570,7 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
 
         if (kill(ppid, SIGUSR1) == -1) {
             perror("kill");
-            term = TRUE;
+            break;
         }
     }
 
@@ -491,8 +598,29 @@ void manejador_sigint(int sig) {
         wait(NULL);
     }
 
+    close_pipelines(2*sort->n_processes, pipelines);    /*Children might not have closed them*/
     clean_up_multiprocess(sort, mq, mutex, ERROR);
     exit(EXIT_FAILURE);
+}
+
+void manejador_sigalrm(int sig) {
+    char status[MAX_STRING];
+
+    sprintf(status, "%10d%10d%10d%10d%10d\n", getpid(), work_level, work_part, sort->tasks[work_level][work_part].ini, sort->tasks[work_level][work_part].end);
+
+    if (write(write_fd, status, strlen(status) + 1) == -1) {
+        perror("read (illustrator)");
+        kill(ppid, SIGINT); /*Aborts the whole system*/
+        return;
+    }
+}
+
+void close_pipelines(int N, int **pipelines) {
+    int i;
+    for (i = 0; i < N; i++) {
+        close(pipelines[i][0]);
+        close(pipelines[i][1]);
+    }
 }
 
 Status clean_up_multiprocess(Sort *sort, mqd_t mq, sem_t *mutex, Status ret_val) {
