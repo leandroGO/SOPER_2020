@@ -265,7 +265,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         .mq_flags = 0,
         .mq_maxmsg = 10,
         .mq_curmsgs = 0,
-        .mq_msgsize = sizeof(2*sizeof(int)) /*level and part determines a task*/
+        .mq_msgsize = sizeof(Message) /*level and part determines a task*/
     };
     Message msg;
 
@@ -276,7 +276,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     struct sigaction s_term, s_u1, s_int, ign_int;
     sigset_t wait_su1, block_su1;
 
-    /*Initializing handlers and masks*/
+    /* Initializing handlers and masks */
     s_term.sa_handler = manejador_sigterm;
     s_term.sa_flags = 0;
     sigemptyset(&(s_term.sa_mask));
@@ -324,18 +324,18 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         return ERROR;
     }
 
-    /*Mutual exclusion semaphore is created*/
+    /* Mutual exclusion semaphore is created */
     if ((mutex = sem_open("/mutex", O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
         perror("sem_open");
         return clean_up_multiprocess(sort, (mqd_t)-1, NULL, ERROR);
     }
-    sem_unlink("/mutex");
+    sem_unlink("/mutex"); /*"/mutex" will no longer be used*/
 
     /* POSIX message queue is created */
     mq = mq_open(MQ_NAME, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR, &attributes);
     if (mq == (mqd_t)-1) {
         perror("mq_open");
-        clean_up_multiprocess(sort, mq, mutex, ERROR);
+        return clean_up_multiprocess(sort, mq, mutex, ERROR);
     }
     mq_unlink(MQ_NAME); /*MQ_NAME will no longer be used*/
 
@@ -348,14 +348,13 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     plot_vector(sort->data, sort->n_elements);
     printf("\nStarting algorithm with %d levels and %d processes...\n", sort->n_levels, sort->n_processes);
 
-    sort->n_processes = sort->n_processes;
     children_id = (pid_t*)malloc(sort->n_processes*sizeof(pid_t));
     if (children_id == NULL) {
         perror("malloc");
         return clean_up_multiprocess(sort, mq, mutex, ERROR);
     }
 
-    /*Applying SIGUSR1 mask and handler*/
+    /* Applying SIGUSR1 mask and handler */
     if (sigprocmask(SIG_BLOCK, &block_su1, NULL) == -1) {
         perror("sigprocmask");
         return clean_up_multiprocess(sort, mq, mutex, ERROR);
@@ -366,7 +365,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         return clean_up_multiprocess(sort, mq, mutex, ERROR);
     }
     
-    /*Initializing the workers*/
+    /* Initializing the workers */
     for (j = 0; j < sort->n_processes; j++) {
         children_id[j] = fork();
         if (children_id[j] < 0) {
@@ -418,7 +417,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         printf("%10d%10d%10d%10d%10d\n", getpid(), i, -1, sort->tasks[i][j].ini, sort->tasks[i][j].end);
     }
 
-    /*Sending SIGTERM to child processes*/
+    /* Sending SIGTERM to child processes */
     for (j = 0; j < sort->n_processes; j++) {
         if (kill(children_id[j], SIGTERM) == -1) {
             perror("kill");
