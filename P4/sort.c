@@ -472,17 +472,13 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             }
             sem_post(mutex);
         }
-        
-        plot_vector(sort->data, sort->n_elements);
-        printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", "END");
-        printf("%10d%10d%10d%10d%10d\n", getpid(), i, -1, sort->tasks[i][j].ini, sort->tasks[i][j].end);
     }
 
     /* Sending SIGTERM to child processes */
     for (j = 0; j < sort->n_processes; j++) {
         if (kill(children_id[j], SIGTERM) == -1) {
             perror("kill");
-            return clean_up_multiprocess(sort, mq, mutex, ERROR);
+            //return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
     }
     for (j = 0; j < sort->n_processes; j++) {
@@ -625,7 +621,8 @@ void manejador_sigint(int sig) {
 }
 
 void manejador_sigalrm(int sig) {
-    char status[MAX_STRING];
+    char status[MAX_STRING], info[MAX_STRING];
+    ssize_t nbytes = 0;
 
     if (work_level == -1) {
         sprintf(status, "%10d%10d%10d%10d%10d\n", getpid(), -1, -1, -1, -1);
@@ -634,14 +631,23 @@ void manejador_sigalrm(int sig) {
     }
 
     if (write(write_fd, status, strlen(status) + 1) == -1) {
-        perror("read (worker)");
+        perror("write (worker)");
         kill(ppid, SIGINT); /*Aborts the whole system*/
         return;
     }
 
-    if (alarm(1)) {
+    do {
+        nbytes = read(read_fd, info, sizeof(info));
+        if (nbytes == -1) {
+            perror("read (worker)");
+            kill(ppid, SIGINT); /*Aborts the whole system*/
+            return;
+        }
+    } while (nbytes);
+
+    if (alarm(1)) { /*Resets alarm*/
         fprintf(stderr, "Previous alarm exists.\n");
-    }; /*Resets alarm*/
+    };
 }
 
 void close_pipelines(int N, int **pipelines) {
