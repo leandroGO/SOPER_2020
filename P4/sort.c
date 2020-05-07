@@ -20,7 +20,7 @@
 
 /* Private functions */
 void illustrator(Sort *sort, int **pipelines, pid_t ppid);   /*Illustrator's code*/
-void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid);   /*Workers' code*/
+void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid, int read_fd, int write_fd);   /*Workers' code*/
 void manejador_sigterm(int sig);
 void manejador_sigusr1(int sig);
 void manejador_sigint(int sig);
@@ -37,8 +37,6 @@ static pid_t *children_id;
 static int pipelines[2*MAX_PARTS][2];
 static int work_level = -1;  /*Coordinates for "this" worker*/
 static int work_part = -1;
-static int read_fd; /*Pipelines for "this" worker*/
-static int write_fd;
 
 /* Interface implementation */
 Status bubble_sort(int *vector, int n_elements, int delay) {
@@ -440,10 +438,8 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 
             close(pipelines[2*j][1]);   /*workers write on the odd and read from the even*/
             close(pipelines[2*j+1][0]);
-            read_fd = pipelines[2*j][0];
-            write_fd = pipelines[2*j+1][1];
 
-            worker(sort, mq, mutex, ppid);
+            worker(sort, mq, mutex, ppid, pipelines[2*j][0], pipelines[2*j+1][1]);
         }
     }
 
@@ -537,7 +533,7 @@ void illustrator(Sort *sort, int **pipelines, pid_t ppid) {
     }
 }
 
-void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
+void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid, int read_fd, int write_fd) {
     Message msg;
     Bool term = FALSE, alm = TRUE;
 
