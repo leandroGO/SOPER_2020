@@ -551,6 +551,7 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
         }
         while (alm) {
             alm = FALSE;
+            printf("COOOOOOLAAAAAA\n");
             if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1) {
                 if (errno != EINTR) {
                     perror("mq_receive");
