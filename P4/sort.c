@@ -34,7 +34,7 @@ static mqd_t mq;
 static sem_t *mutex;
 static pid_t ppid;
 static pid_t *children_id;
-static int pipelines[2*MAX_PARTS][2];
+static int **pipelines;
 static int work_level = -1;  /*Coordinates for "this" worker*/
 static int work_part = -1;
 static int read_fd; /*Pipelines for "this" worker*/
@@ -269,7 +269,7 @@ Status sort_single_process(char *file_name, int n_levels, int n_processes, int d
 
 Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int delay) {
     int i, j, n_parts;
-    int fd, pipes[MAX_PARTS][2];
+    int fd;
 
     struct mq_attr attributes = {
         .mq_flags = 0,
@@ -381,6 +381,20 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     }
 
     /* Creating pipelines */
+    pipelines = (int**)malloc(2*sort->n_processes*sizeof(int*));
+    if (pipelines == NULL) {
+        perror("malloc");
+        return clean_up_multiprocess(sort, mq, mutex, ERROR);
+    }
+
+    for (i = 0; i < 2*sort->n_processes; i++) {
+        pipelines[i] = (int*)malloc(2*sizeof(int));
+        if (pipelines == NULL) {
+            perror("malloc");
+            return clean_up_multiprocess(sort, mq, mutex, ERROR);
+        }
+    }
+
     for (i = 0; i < 2*sort->n_processes; i++) {
         if (pipe(pipelines[i]) == -1) {
             perror("pipe");
@@ -438,14 +452,23 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
             }
 
-            close(pipelines[2*(j-1)][1]);   /*workers write on the odd and read from the even*/
-            close(pipelines[2*(j-1)+1][0]);
-            read_fd = pipelines[2*(j-1)][0];
-            write_fd = pipelines[2*(j-1)+1][1];
+            /*workers write on the odd and read from the even*/
+            read_fd = pipelines[2*j][0];
+            write_fd = pipelines[2*j+1][1];
+            close(pipelines[2*j][1]);
+            close(pipelines[2*j+1][0]);
+            for (i = 0; i < 2*sort->n_processes; i++) {
+                if (i != 2*j && i != 2*j+1) {
+                    close(pipelines[i][0]);
+                    close(pipelines[i][1]);
+                }
+            }
 
             worker(sort, mq, mutex, ppid);
         }
     }
+
+    close_pipelines(2*sort->n_processes, pipelines);
 
     /* For each level, and each part, the corresponding task is solved. */
     for (i = 0; i < sort->n_levels; i++) {
@@ -478,7 +501,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     for (j = 0; j < sort->n_processes; j++) {
         if (kill(children_id[j], SIGTERM) == -1) {
             perror("kill");
-            //return clean_up_multiprocess(sort, mq, mutex, ERROR);
+            /*return clean_up_multiprocess(sort, mq, mutex, ERROR);*/
         }
     }
     for (j = 0; j < sort->n_processes; j++) {
@@ -524,7 +547,7 @@ void illustrator(Sort *sort, int **pipelines, pid_t ppid) {
         plot_vector(sort->data, sort->n_elements);  /*Since workers (writers) are blocked, a semaphore won't be needed*/
         printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", "END");
         for (i = 0; i < sort->n_processes; i++) {
-            printf(info[i]);
+            printf("%s", info[i]);
         }
 
         for (i = 0; i < sort->n_processes; i++) {
