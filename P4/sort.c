@@ -399,7 +399,6 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
     if (!children_id[0]) {
-        printf("illustrator\n");
         if (sigaction(SIGINT, &ign_int, NULL) == -1) {
             perror("sigaction (SIGINT)");
             close_pipelines(2*sort->n_processes, pipelines);
@@ -424,7 +423,6 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
         if (!children_id[j]) {
-            printf("worker\n");
             if (sigaction(SIGINT, &ign_int, NULL) == -1) {
                 perror("sigaction (SIGINT)");
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
@@ -548,7 +546,9 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
     Bool term = FALSE, alm = TRUE;
 
     while (TRUE) {
-        alarm(1);
+        if (alarm(1)) {
+            fprintf(stderr, "alarm\n");
+        }
         while (alm) {
             alm = FALSE;
             if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1) {
@@ -639,7 +639,9 @@ void manejador_sigalrm(int sig) {
         return;
     }
 
-    alarm(1); /*Resets alarm*/
+    if (alarm(1)) {
+        fprintf(stderr, "alarm\n");
+    }; /*Resets alarm*/
 }
 
 void close_pipelines(int N, int **pipelines) {
