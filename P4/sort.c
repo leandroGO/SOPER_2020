@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -31,6 +32,7 @@ Status clean_up_multiprocess(Sort *sort, mqd_t mq, sem_t *mutex, Status ret_val)
 static Sort *sort;
 static mqd_t mq;
 static sem_t *mutex;
+static pid_t ppid;
 static pid_t *children_id;
 static int pipelines[2*MAX_PARTS][2];
 static int work_level = -1;  /*Coordinates for "this" worker*/
@@ -277,7 +279,6 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     };
     Message msg;
 
-    pid_t ppid = getpid();
     int child_exit_status;
     Bool worker_failed = FALSE, level_completed;
 
@@ -388,6 +389,8 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         }
     }
 
+    ppid = getpid();
+
     /* Initializing illustrator */
     children_id[0] = fork();
     if (children_id[0] < 0) {
@@ -435,7 +438,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
             }
 
-            close(pipelines[2*j][1]);   /*workera write on the odd and read from the even*/
+            close(pipelines[2*j][1]);   /*workers write on the odd and read from the even*/
             close(pipelines[2*j+1][0]);
             read_fd = pipelines[2*j][0];
             write_fd = pipelines[2*j+1][1];
@@ -564,15 +567,21 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
             break;
         }
 
-        alm = FALSE;
+        term = FALSE; alm = TRUE;
         while (alm) {
             alm = FALSE;
             if (sem_wait(mutex) == -1){
-                if (errno == EINTR) {
-                    alm = TRUE;
+                if (errno != EINTR) {
+                    perror("sem_wait");
+                    term = TRUE;
+                    break;
                 }
+                alm = TRUE;
             }
-        }   
+        }
+        if (term) {
+            break;
+        }
         sort->tasks[msg.level][msg.part].completed = COMPLETED;
         sem_post(mutex);
 
@@ -580,8 +589,10 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
             perror("kill");
             break;
         }
+        work_level = -1;    /*works as flag for not busy*/
     }
 
+    kill(ppid, SIGINT);
     clean_up_multiprocess(sort, mq, mutex, ERROR);
     exit(EXIT_FAILURE);
 }
@@ -614,13 +625,19 @@ void manejador_sigint(int sig) {
 void manejador_sigalrm(int sig) {
     char status[MAX_STRING];
 
-    sprintf(status, "%10d%10d%10d%10d%10d\n", getpid(), work_level, work_part, sort->tasks[work_level][work_part].ini, sort->tasks[work_level][work_part].end);
+    if (work_level == -1) {
+        sprintf(status, "%10d%10d%10d%10d%10d\n", getpid(), -1, -1, -1, -1);
+    } else {
+        sprintf(status, "%10d%10d%10d%10d%10d\n", getpid(), work_level, work_part, sort->tasks[work_level][work_part].ini, sort->tasks[work_level][work_part].end);
+    }
 
     if (write(write_fd, status, strlen(status) + 1) == -1) {
         perror("read (illustrator)");
         kill(ppid, SIGINT); /*Aborts the whole system*/
         return;
     }
+
+    alarm(1); /*Resets alarm*/
 }
 
 void close_pipelines(int N, int **pipelines) {
