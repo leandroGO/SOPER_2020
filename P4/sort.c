@@ -547,7 +547,7 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
 
     while (TRUE) {
         if (alarm(1)) {
-            fprintf(stderr, "alarm\n");
+            fprintf(stderr, "alarm1\n");
         }
         while (alm) {
             alm = FALSE;
@@ -641,7 +641,7 @@ void manejador_sigalrm(int sig) {
     }
 
     if (alarm(1)) {
-        fprintf(stderr, "alarm\n");
+        fprintf(stderr, "alarm2\n");
     }; /*Resets alarm*/
 }
 
