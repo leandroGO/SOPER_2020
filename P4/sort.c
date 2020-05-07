@@ -399,6 +399,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
     if (!children_id[0]) {
+        printf("illustrator\n");
         if (sigaction(SIGINT, &ign_int, NULL) == -1) {
             perror("sigaction (SIGINT)");
             close_pipelines(2*sort->n_processes, pipelines);
@@ -423,6 +424,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
         if (!children_id[j]) {
+            printf("worker\n");
             if (sigaction(SIGINT, &ign_int, NULL) == -1) {
                 perror("sigaction (SIGINT)");
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
