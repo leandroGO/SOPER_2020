@@ -546,7 +546,7 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
     Bool term = FALSE, alm = TRUE;
 
     if (alarm(1)) {
-        fprintf(stderr, "alarm1\n");
+        fprintf(stderr, "Previous alarm exists.\n");
     }
     while (TRUE) {
         while (alm) {
@@ -634,13 +634,13 @@ void manejador_sigalrm(int sig) {
     }
 
     if (write(write_fd, status, strlen(status) + 1) == -1) {
-        perror("read (illustrator)");
+        perror("read (worker)");
         kill(ppid, SIGINT); /*Aborts the whole system*/
         return;
     }
 
     if (alarm(1)) {
-        fprintf(stderr, "alarm2\n");
+        fprintf(stderr, "Previous alarm exists.\n");
     }; /*Resets alarm*/
 }
 
