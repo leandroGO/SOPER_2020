@@ -533,7 +533,7 @@ void illustrator(Sort *sort, int **pipelines, pid_t ppid) {
 
         for (i = 0; i < sort->n_processes; i++) {
             if (write(pipelines[2*i][1], "foo", strlen("foo") + 1) == -1) {
-                perror("read (illustrator)");
+                perror("write (illustrator)");
                 kill(ppid, SIGINT); /*Aborts the whole system*/
                 return;
             }
@@ -551,7 +551,6 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
     while (TRUE) {
         while (alm) {
             alm = FALSE;
-            printf("COOOOOOLAAAAAA\n");
             if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1) {
                 if (errno != EINTR) {
                     perror("mq_receive");
