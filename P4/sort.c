@@ -510,7 +510,7 @@ void illustrator(Sort *sort, int **pipelines, pid_t ppid) {
     }
 
     while (TRUE) {
-        for (i = 0; i < sort->n_processes; i++) {
+        for (i = 0; i < sort->n_processes - 1; i++) {
             do {
                 nbytes = read(pipelines[2*i+1][0], info[i], sizeof(info[i]));
                 if (nbytes == -1) {
