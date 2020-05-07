@@ -382,7 +382,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     /* Creating pipelines */
     for (i = 0; i < 2*sort->n_processes; i++) {
         if (pipe(pipelines[i]) == -1) {
-            perror("pipe (%d)", i);
+            perror("pipe");
             close_pipelines(i - 1, pipelines);
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
@@ -510,7 +510,7 @@ void illustrator(Sort *sort, int **pipelines, pid_t ppid) {
         close(pipelines[2*i+1][1]);
     }
 
-    while (true) {
+    while (TRUE) {
         for (i = 0; i < sort->n_processes; i++) {
             do {
                 nbytes = read(pipelines[2*i+1][0], info[i], sizeof(info[i]));
@@ -564,7 +564,15 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
             break;
         }
 
-        sem_wait(mutex);
+        alm = FALSE;
+        while (alm) {
+            alm = FALSE;
+            if (sem_wait(mutex) == -1){
+                if (errno == EINTR) {
+                    alm = TRUE;
+                }
+            }
+        }   
         sort->tasks[msg.level][msg.part].completed = COMPLETED;
         sem_post(mutex);
 
