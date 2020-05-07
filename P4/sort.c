@@ -545,10 +545,10 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
     Message msg;
     Bool term = FALSE, alm = TRUE;
 
+    if (alarm(1)) {
+        fprintf(stderr, "alarm1\n");
+    }
     while (TRUE) {
-        if (alarm(1)) {
-            fprintf(stderr, "alarm1\n");
-        }
         while (alm) {
             alm = FALSE;
             printf("COOOOOOLAAAAAA\n");
