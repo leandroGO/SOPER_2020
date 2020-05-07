@@ -438,10 +438,10 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
             }
 
-            close(pipelines[2*j][1]);   /*workers write on the odd and read from the even*/
-            close(pipelines[2*j+1][0]);
-            read_fd = pipelines[2*j][0];
-            write_fd = pipelines[2*j+1][1];
+            close(pipelines[2*(j-1)][1]);   /*workers write on the odd and read from the even*/
+            close(pipelines[2*(j-1)+1][0]);
+            read_fd = pipelines[2*(j-1)][0];
+            write_fd = pipelines[2*(j-1)+1][1];
 
             worker(sort, mq, mutex, ppid);
         }
