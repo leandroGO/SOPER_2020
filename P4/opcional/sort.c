@@ -467,31 +467,19 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     }
 
     close_pipelines(2*sort->n_processes, pipelines);
-
-    /* Sending every process in level 0*/
-    n_parts = get_number_parts(0, sort->n_levels);
-    msg.level = 0;
-    for (j = 0; j < n_parts; j++) {
-        msg.part = j;
-        if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1) {
-            perror("mq_send");
-            return clean_up_multiprocess(sort, mq, mutex, ERROR);  /*Fatal error*/
-        }
-    }
     
     while (1) {
-        sigsuspend(&wait_su1);
         sem_wait(mutex);
-        for (i = 0; i < sort->n_levels -1; i++) {
-            for (j = 0; j < get_number_parts(i, sort->n_levels)/2; j++) {
+        for (i = 0; i < sort->n_levels; i++) {
+            for (j = 0; j < get_number_parts(i, sort->n_levels); j++) {
                 if (check_task_ready(sort, i, j)) {
                     msg.part = j;
-                    msg.level = i + 1;
+                    msg.level = i;
                     if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1) {
                         perror("mq_send");
                         return clean_up_multiprocess(sort, mq, mutex, ERROR);  /*Fatal error*/
                     }
-                    sort->tasks[i+1][j].completed = SENT;
+                    sort->tasks[i][j].completed = SENT;
                 }
             }
         }
@@ -499,6 +487,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             break;
         }
         sem_post(mutex);
+        sigsuspend(&wait_su1);
     }
 
 
