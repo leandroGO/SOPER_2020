@@ -611,14 +611,14 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex) {
         sem_post(mutex);
 
         if (kill(sort->ppid, SIGUSR1) == -1) {
-            perror("kill (worker)");
+            perror("kill (worker)3");
             break;
         }
         work_level = -1;    /*works as flag for not busy*/
     }
 
     if (kill(sort->ppid, SIGINT) == -1) {
-        perror("kill (worker)");
+        perror("kill (worker)4");
         exit(EXIT_FAILURE);
     }
 }
@@ -661,7 +661,7 @@ void manejador_sigalrm(int sig) {
     if (write(write_fd, status, strlen(status) + 1) == -1) {
         perror("write (worker)");
         if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
-            perror("kill (worker)");
+            perror("kill (worker)1");
             clean_up_multiprocess(sort, mq, mutex, ERROR);
             exit(EXIT_FAILURE);
         }
@@ -673,7 +673,7 @@ void manejador_sigalrm(int sig) {
         if (nbytes == -1) {
             perror("read (worker)");
             if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
-                perror("kill (worker)");
+                perror("kill (worker)2");
                 clean_up_multiprocess(sort, mq, mutex, ERROR);
                 exit(EXIT_FAILURE);
             }
