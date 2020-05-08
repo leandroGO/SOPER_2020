@@ -467,7 +467,6 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     }
 
     close_pipelines(2*sort->n_processes, pipelines);
-    printf("pipelines cerrados (main)\n");
 
     /* For each level, and each part, the corresponding task is solved. */
     for (i = 0; i < sort->n_levels; i++) {
@@ -475,6 +474,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         n_parts = get_number_parts(i, sort->n_levels);
         msg.level = i;
         for (j = 0; j < n_parts; j++) {
+            printf("%d %d\n", i ,j);
             msg.part = j;
             if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1) {
                 perror("mq_send");
