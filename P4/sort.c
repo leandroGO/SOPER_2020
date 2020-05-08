@@ -19,8 +19,8 @@
 #include "utils.h"
 
 /* Private functions */
-void illustrator(Sort *sort, int **pipelines, pid_t ppid);   /*Illustrator's code*/
-void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid);   /*Workers' code*/
+void illustrator(Sort *sort, int **pipelines);   /*Illustrator's code*/
+void worker(Sort *sort, mqd_t mq, sem_t *mutex);   /*Workers' code*/
 void manejador_sigterm(int sig);
 void manejador_sigusr1(int sig);
 void manejador_sigint(int sig);
@@ -32,7 +32,6 @@ Status clean_up_multiprocess(Sort *sort, mqd_t mq, sem_t *mutex, Status ret_val)
 static Sort *sort;
 static mqd_t mq;
 static sem_t *mutex;
-static pid_t ppid;
 static pid_t *children_id;
 static int **pipelines;
 static int work_level = -1;  /*Coordinates for "this" worker*/
@@ -403,8 +402,6 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         }
     }
 
-    ppid = getpid();
-
     /* Initializing illustrator */
     children_id[0] = fork();
     if (children_id[0] < 0) {
@@ -425,14 +422,14 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
 
-        illustrator(sort, pipelines, ppid);
+        illustrator(sort, pipelines);
         sigsuspend(&wait_ter);
     }
     
     /* Initializing the workers */
-    for (j = 1; j <= sort->n_processes; j++) {
-        children_id[j] = fork();
-        if (children_id[j] < 0) {
+    for (j = 0; j < sort->n_processes; j++) {
+        children_id[j + 1] = fork();    /*0 is for illustrator*/
+        if (children_id[j + 1] < 0) {
             perror("fork");
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
@@ -464,7 +461,8 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
                 }
             }
 
-            worker(sort, mq, mutex, ppid);
+            worker(sort, mq, mutex);
+            sigsuspend(&wait_ter);
         }
     }
 
@@ -522,7 +520,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 }
 
 /* Private functions implementation */
-void illustrator(Sort *sort, int **pipelines, pid_t ppid) {
+void illustrator(Sort *sort, int **pipelines) {
     int i;
     char info[MAX_PARTS][MAX_STRING];
     ssize_t nbytes = 0;
@@ -538,7 +536,10 @@ void illustrator(Sort *sort, int **pipelines, pid_t ppid) {
                 nbytes = read(pipelines[2*i+1][0], info[i], sizeof(info[i]));
                 if (nbytes == -1) {
                     perror("read (illustrator)");
-                    kill(ppid, SIGINT); /*Aborts the whole system*/
+                    if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
+                        perror("kill (illustrator)");
+                        exit(EXIT_FAILURE);
+                    }
                     return;
                 }
             } while (nbytes);
@@ -553,14 +554,17 @@ void illustrator(Sort *sort, int **pipelines, pid_t ppid) {
         for (i = 0; i < sort->n_processes; i++) {
             if (write(pipelines[2*i][1], "foo", strlen("foo") + 1) == -1) {
                 perror("write (illustrator)");
-                kill(ppid, SIGINT); /*Aborts the whole system*/
+                if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
+                    perror("kill (illustrator)");
+                    exit(EXIT_FAILURE);
+                }
                 return;
             }
         }
     }
 }
 
-void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
+void worker(Sort *sort, mqd_t mq, sem_t *mutex) {
     Message msg;
     Bool term = FALSE, alm = TRUE;
 
@@ -606,16 +610,17 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
         sort->tasks[msg.level][msg.part].completed = COMPLETED;
         sem_post(mutex);
 
-        if (kill(ppid, SIGUSR1) == -1) {
-            perror("kill");
+        if (kill(sort->ppid, SIGUSR1) == -1) {
+            perror("kill (worker)");
             break;
         }
         work_level = -1;    /*works as flag for not busy*/
     }
 
-    kill(ppid, SIGINT);
-    clean_up_multiprocess(sort, mq, mutex, ERROR);
-    exit(EXIT_FAILURE);
+    if (kill(sort->ppid, SIGINT) == -1) {
+        perror("kill (worker)");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void manejador_sigterm(int sig) {
@@ -655,7 +660,11 @@ void manejador_sigalrm(int sig) {
 
     if (write(write_fd, status, strlen(status) + 1) == -1) {
         perror("write (worker)");
-        kill(ppid, SIGINT); /*Aborts the whole system*/
+        if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
+            perror("kill (worker)");
+            clean_up_multiprocess(sort, mq, mutex, ERROR);
+            exit(EXIT_FAILURE);
+        }
         return;
     }
 
@@ -663,7 +672,11 @@ void manejador_sigalrm(int sig) {
         nbytes = read(read_fd, info, sizeof(info));
         if (nbytes == -1) {
             perror("read (worker)");
-            kill(ppid, SIGINT); /*Aborts the whole system*/
+            if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
+                perror("kill (worker)");
+                clean_up_multiprocess(sort, mq, mutex, ERROR);
+                exit(EXIT_FAILURE);
+            }
             return;
         }
     } while (nbytes);
