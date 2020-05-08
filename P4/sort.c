@@ -461,7 +461,6 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
                 }
             }
 
-            alarm(1);
             worker();
             sigsuspend(&wait_ter);
         }
