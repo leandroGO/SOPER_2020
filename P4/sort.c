@@ -533,17 +533,17 @@ void illustrator() {
 
     while (TRUE) {
         for (i = 0; i < sort->n_processes - 1; i++) {
-            do {
-                nbytes = read(pipelines[2*i+1][0], info[i], sizeof(info[i]));
-                if (nbytes == -1) {
-                    perror("read (illustrator)");
-                    if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
-                        perror("kill (illustrator)");
-                        exit(EXIT_FAILURE);
-                    }
-                    return;
+            
+            nbytes = read(pipelines[2*i+1][0], info[i], sizeof(info[i]));
+            if (nbytes == -1) {
+                perror("read (illustrator)");
+                if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
+                    perror("kill (illustrator)");
+                    exit(EXIT_FAILURE);
                 }
-            } while (nbytes);
+                return;
+            }
+        
         }
 
         plot_vector(sort->data, sort->n_elements);  /*Since workers (writers) are blocked, a semaphore won't be needed*/
@@ -670,18 +670,19 @@ void manejador_sigalrm(int sig) {
         return;
     }
 
-    do {
-        nbytes = read(read_fd, info, sizeof(info));
-        if (nbytes == -1) {
-            perror("read (worker)");
-            if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
-                perror("kill (worker)2");
-                clean_up_multiprocess(sort, mq, mutex, ERROR);
-                exit(EXIT_FAILURE);
-            }
-            return;
+
+    nbytes = read(read_fd, info, sizeof(info));
+    if (nbytes == -1) {
+        perror("read (worker)");
+        if (kill(sort->ppid, SIGINT) == -1) { /*Aborts the whole system*/
+            perror("kill (worker)2");
+            clean_up_multiprocess(sort, mq, mutex, ERROR);
+            exit(EXIT_FAILURE);
         }
-    } while (nbytes);
+        return;
+    }
+
+
 
     if (alarm(1)) { /*Resets alarm*/
         fprintf(stderr, "Previous alarm exists.\n");
