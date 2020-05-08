@@ -433,7 +433,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             perror("fork");
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
-        if (!children_id[j]) {
+        if (!children_id[j + 1]) {
             if (sigaction(SIGINT, &ign_int, NULL) == -1) {
                 perror("sigaction (SIGINT)");
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
