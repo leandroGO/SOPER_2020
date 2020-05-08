@@ -279,7 +279,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     Message msg;
 
     int child_exit_status;
-    Bool worker_failed = FALSE, level_completed;
+    Bool worker_failed = FALSE;
 
     struct sigaction s_term, s_u1, s_int, ign_int, s_alrm;
     sigset_t wait_su1, block_su1, wait_ter;
@@ -468,32 +468,39 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 
     close_pipelines(2*sort->n_processes, pipelines);
 
-    /* For each level, and each part, the corresponding task is solved. */
-    for (i = 0; i < sort->n_levels; i++) {
-        level_completed = FALSE;
-        n_parts = get_number_parts(i, sort->n_levels);
-        msg.level = i;
-        for (j = 0; j < n_parts; j++) {
-            msg.part = j;
-            if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1) {
-                perror("mq_send");
-                return clean_up_multiprocess(sort, mq, mutex, ERROR);  /*Fatal error*/
-            }
-        }
-
-        while (!level_completed) {
-            level_completed = TRUE;
-            sigsuspend(&wait_su1);
-            sem_wait(mutex);
-            for (j = 0; j < n_parts; j++) {
-                if (sort->tasks[i][j].completed != COMPLETED) {
-                    level_completed = FALSE;
-                    break;
-                }
-            }
-            sem_post(mutex);
+    /* Sending every process in level 0*/
+    n_parts = get_number_parts(0, sort->n_levels);
+    msg.level = 0;
+    for (j = 0; j < n_parts; j++) {
+        msg.part = j;
+        if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1) {
+            perror("mq_send");
+            return clean_up_multiprocess(sort, mq, mutex, ERROR);  /*Fatal error*/
         }
     }
+    
+    while (1) {
+        sigsuspend(&wait_su1);
+        sem_wait(mutex);
+        for (i = 0; i < sort->n_levels -1; i++) {
+            for (j = 0; j < get_number_parts(i, sort->n_levels)/2; j++) {
+                if (check_task_ready(sort, i, j)) {
+                    msg.part = j;
+                    msg.level = i + 1;
+                    if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1) {
+                        perror("mq_send");
+                        return clean_up_multiprocess(sort, mq, mutex, ERROR);  /*Fatal error*/
+                    }
+                    sort->tasks[i+1][j].completed = SENT;
+                }
+            }
+        }
+        if (sort->tasks[sort->n_levels-1][0].completed == COMPLETED) {
+            break;
+        }
+        sem_post(mutex);
+    }
+
 
     /* Sending SIGTERM to child processes */
     for (j = 0; j < sort->n_processes + 1; j++) {
@@ -696,7 +703,6 @@ void close_pipelines(int N, int **pipelines) {
 }
 
 Status clean_up_multiprocess(Sort *sort, mqd_t mq, sem_t *mutex, Status ret_val) {
-    close_pipelines(2*sort->n_processes, pipelines);
     if (sort != NULL) {
         munmap(sort, sizeof(*sort));
     }
