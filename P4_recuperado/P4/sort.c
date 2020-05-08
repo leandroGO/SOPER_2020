@@ -29,6 +29,11 @@ static Sort *sort;
 static mqd_t mq;
 static sem_t *mutex;
 static pid_t *children_id;
+static int **pipelines;
+static int work_level = -1;  /*Coordinates for "this" worker*/
+static int work_part = -1;
+static int read_fd; /*Pipelines for "this" worker*/
+static int write_fd;
 
 /* Interface implementation */
 Status bubble_sort(int *vector, int n_elements, int delay) {
@@ -400,10 +405,10 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         }
 
         while (!level_completed) {
+            level_completed = TRUE;
             sigsuspend(&wait_su1);
             sem_wait(mutex);
             for (j = 0; j < n_parts; j++) {
-                level_completed = TRUE;
                 if (sort->tasks[i][j].completed != COMPLETED) {
                     level_completed = FALSE;
                     break;
@@ -448,7 +453,7 @@ void worker() {
 
     while(!term) {
         if (mq_receive(mq, (char *)&msg, sizeof(msg), NULL) == -1) {
-            if (errno != 4) {
+            if (errno != EINTR) {
                 perror("mq_receive");
             }
         } else {
