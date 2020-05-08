@@ -483,10 +483,10 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         }
 
         while (!level_completed) {
+            level_completed = TRUE;
             sigsuspend(&wait_su1);
             sem_wait(mutex);
             for (j = 0; j < n_parts; j++) {
-                level_completed = TRUE;
                 if (sort->tasks[i][j].completed != COMPLETED) {
                     level_completed = FALSE;
                     break;
@@ -497,7 +497,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     }
 
     /* Sending SIGTERM to child processes */
-    for (j = 0; j < sort->n_processes; j++) {
+    for (j = 0; j < sort->n_processes + 1; j++) {
         if (kill(children_id[j], SIGTERM) == -1) {
             perror("kill");
             /*return clean_up_multiprocess(sort, mq, mutex, ERROR);*/
@@ -616,6 +616,7 @@ void worker() {
             break;
         }
         work_level = -1;    /*works as flag for not busy*/
+        term = FALSE; alm = TRUE;
     }
 
     if (kill(sort->ppid, SIGINT) == -1) {
