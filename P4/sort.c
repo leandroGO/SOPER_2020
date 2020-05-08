@@ -474,7 +474,6 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
         n_parts = get_number_parts(i, sort->n_levels);
         msg.level = i;
         for (j = 0; j < n_parts; j++) {
-            printf("%d %d\n", i ,j);
             msg.part = j;
             if (mq_send(mq, (char *)&msg, sizeof(msg), 1) == -1) {
                 perror("mq_send");
@@ -532,7 +531,7 @@ void illustrator() {
     }
 
     while (TRUE) {
-        for (i = 0; i < sort->n_processes - 1; i++) {
+        for (i = 0; i < sort->n_processes; i++) {
             
             nbytes = read(pipelines[2*i+1][0], info[i], sizeof(info[i]));
             if (nbytes == -1) {
@@ -543,7 +542,6 @@ void illustrator() {
                 }
                 return;
             }
-        
         }
 
         plot_vector(sort->data, sort->n_elements);  /*Since workers (writers) are blocked, a semaphore won't be needed*/
