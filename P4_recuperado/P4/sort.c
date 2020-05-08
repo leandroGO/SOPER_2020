@@ -269,7 +269,6 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     };
     Message msg;
 
-    pid_t ppid = getpid();
     int child_exit_status;
     Bool worker_failed = FALSE, level_completed;
 
@@ -383,7 +382,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
                 perror("sigaction");
                 return clean_up_multiprocess(sort, mq, mutex, ERROR);
             }
-            worker(sort, mq, mutex, ppid);
+            worker();
         }
     }
 
@@ -443,7 +442,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 }
 
 /* Private functions implementation */
-void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
+void worker() {
     Message msg;
     Bool term = FALSE;
 
@@ -462,7 +461,7 @@ void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid) {
         sort->tasks[msg.level][msg.part].completed = COMPLETED;
         sem_post(mutex);
 
-        if (kill(ppid, SIGUSR1) == -1) {
+        if (kill(sort->ppid, SIGUSR1) == -1) {
             perror("kill");
             term = TRUE;
         }
