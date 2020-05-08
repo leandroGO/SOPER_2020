@@ -467,6 +467,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
     }
 
     close_pipelines(2*sort->n_processes, pipelines);
+    printf("pipelines cerrados (main)\n");
 
     /* For each level, and each part, the corresponding task is solved. */
     for (i = 0; i < sort->n_levels; i++) {
