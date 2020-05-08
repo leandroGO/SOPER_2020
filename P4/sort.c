@@ -19,8 +19,8 @@
 #include "utils.h"
 
 /* Private functions */
-void illustrator(Sort *sort, int **pipelines);   /*Illustrator's code*/
-void worker(Sort *sort, mqd_t mq, sem_t *mutex);   /*Workers' code*/
+void illustrator();   /*Illustrator's code*/
+void worker();   /*Workers' code*/
 void manejador_sigterm(int sig);
 void manejador_sigusr1(int sig);
 void manejador_sigint(int sig);
@@ -422,7 +422,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             return clean_up_multiprocess(sort, mq, mutex, ERROR);
         }
 
-        illustrator(sort, pipelines);
+        illustrator();
         sigsuspend(&wait_ter);
     }
     
@@ -461,7 +461,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
                 }
             }
 
-            worker(sort, mq, mutex);
+            worker();
             sigsuspend(&wait_ter);
         }
     }
@@ -520,7 +520,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 }
 
 /* Private functions implementation */
-void illustrator(Sort *sort, int **pipelines) {
+void illustrator() {
     int i;
     char info[MAX_PARTS][MAX_STRING];
     ssize_t nbytes = 0;
@@ -564,7 +564,7 @@ void illustrator(Sort *sort, int **pipelines) {
     }
 }
 
-void worker(Sort *sort, mqd_t mq, sem_t *mutex) {
+void worker() {
     Message msg;
     Bool term = FALSE, alm = TRUE;
 
