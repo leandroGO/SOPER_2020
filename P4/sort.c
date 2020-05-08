@@ -355,7 +355,7 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
 
     /* The data is loaded and the structure initialized. */
     if (init_sort(file_name, sort, n_levels, n_processes, delay) == ERROR) {
-        fprintf(stderr, "sort_single_process - init_sort\n");
+        fprintf(stderr, "sort_multiprocess - init_sort\n");
         return clean_up_multiprocess(sort, mq, mutex, ERROR);
     }
 
@@ -502,10 +502,10 @@ Status sort_multiprocess(char *file_name, int n_levels, int n_processes, int del
             /*return clean_up_multiprocess(sort, mq, mutex, ERROR);*/
         }
     }
-    for (j = 0; j < sort->n_processes; j++) {
+    for (j = 0; j < sort->n_processes + 1; j++) {
         wait(&child_exit_status);
         if (WIFEXITED(child_exit_status) && WEXITSTATUS(child_exit_status) == EXIT_FAILURE) {
-            fprintf(stderr, "Worker failed\n");
+            fprintf(stderr, "Illustrator or worker failed\n");
             worker_failed = TRUE;
         }
     }
@@ -633,17 +633,17 @@ void manejador_sigusr1(int sig) {}
 void manejador_sigint(int sig) {
     int i;
 
-    for (i = 0; i < sort->n_processes; i++) {
+    for (i = 0; i < sort->n_processes + 1; i++) {
         if (kill(children_id[i], SIGTERM) == -1) {
             perror("kill");
         }
     }
 
-    for (i = 0; i < sort->n_processes; i++) {
+    for (i = 0; i < sort->n_processes + 1; i++) {
         wait(NULL);
     }
 
-    close_pipelines(2*sort->n_processes, pipelines);    /*Children might not have closed them*/
+    close_pipelines(2*sort->n_processes, pipelines);    /*Just in case*/
     clean_up_multiprocess(sort, mq, mutex, ERROR);
     exit(EXIT_FAILURE);
 }
