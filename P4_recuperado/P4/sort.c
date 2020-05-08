@@ -18,7 +18,7 @@
 #include "utils.h"
 
 /* Private functions */
-void worker(Sort *sort, mqd_t mq, sem_t *mutex, pid_t ppid);   /*Workers' code*/
+void worker();   /*Workers' code*/
 void manejador_sigterm(int sig);
 void manejador_sigusr1(int sig);
 void manejador_sigint(int sig);
